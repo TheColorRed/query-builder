@@ -1,10 +1,10 @@
 const Model = require('../../lib/Model')
 
-module.exports = class Test extends Model {
+module.exports = class Test extends Model.Model {
 
   constructor() {
     super({
-      table: 'test'
+      table: 'users'
     })
   }
 

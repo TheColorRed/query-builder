@@ -1,27 +1,22 @@
+const Test = require('./models/Test')
+const Model = require('../lib/Model')
 const mysql = require('../lib')({
   gamesmart: {
-    connection: {
-      host: '127.0.0.1',
-      user: 'root',
-      password: '',
-      database: 'gamesmart'
-    }
-  },
-  littleapi: {
     default: true,
     connection: {
-      host: '127.0.0.1',
+      host: 'localhost',
       user: 'root',
-      password: '',
-      database: 'littlebigapi'
+      password: 'afrid123',
+      database: 'gamesmart'
     }
   }
 });
-const Test = require('./models/Test');
 
 (async function () {
 
-  console.log(await new Test().userId(11).userName('TheColorRed').get())
+  let r = await Model.firstOrNew(Test, { id: 1 })
+  console.log(r)
+  // console.log(await new Test().userId(11).get())
   // console.log(await mysql.table('test').toString())
 
 

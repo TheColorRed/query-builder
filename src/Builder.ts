@@ -157,7 +157,6 @@ export default class Builder extends Root {
 
   public async get<T>(): Promise<T[] | null> {
     let query = this.toString()
-    console.log(query)
     let results = await Root.query<T[]>(this._conn, query, this._placeholders)
     this.reset()
     return results

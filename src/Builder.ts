@@ -1,12 +1,14 @@
 import * as mysql from 'mysql'
-import DB from './DB';
+import Root from './Root';
+import DB, { Connection } from './DB';
+import { ModelOptions } from './Model';
 
 export class QueryResult { }
 
 export enum direction { asc = 'asc', desc = 'desc' }
 export enum JoinType { join = 'join', leftJoin = 'left join', rightJoin = 'rightJoin' }
 
-export default class Builder {
+export default class Builder extends Root {
 
   private _conn: mysql.Connection
 
@@ -21,8 +23,21 @@ export default class Builder {
   private _limit: number = -1
 
 
-  public constructor(connection: mysql.Connection) {
-    this._conn = connection
+  public constructor(connection: mysql.Connection | ModelOptions) {
+    super()
+    if (connection && 'connection' in connection) {
+      let conn = DB.getConnection((<ModelOptions>connection).connection || '')
+      if (conn) {
+        this._conn = conn.conn
+      }
+    } else if ('threadId' in connection) {
+      this._conn = connection as mysql.Connection
+    } else {
+      let conn = DB.connections.find(c => c.config.default === true)
+      if (conn) {
+        this._conn = conn.conn
+      }
+    }
   }
 
   public table(table: string) {
@@ -52,6 +67,16 @@ export default class Builder {
     } else {
       throw new Error('Invalid number of "where" arguments')
     }
+    return this
+  }
+
+  public whereNull(column: string) {
+    this._where.push(new Where(column, null, 'is null'))
+    return this
+  }
+
+  public whereNotNull(column: string) {
+    this._where.push(new Where(column, null, 'is not null'))
     return this
   }
 
@@ -88,21 +113,23 @@ export default class Builder {
     this._distinct && q.push('distinct')
     this._select.length == 0 ? q.push('*') : this._select.forEach(select => q.push(select.raw))
     // Create the from
-    q.push('from', this._table)
+    q.push('from', this.getOption('table'))
     // Create joins
     this._join.forEach(j => {
       q.push(`${j.joinType} ${j.table} on ${j.column.column} ${j.column.operator} ${j.column.value}`)
     })
     // Create the where
     this._where.length > 0 ? q.push('where') : null
+    let wheres: string[] = []
     this._where.forEach(where => {
       if (where.value === null) {
-        q.push(`${where.column} is null`)
+        wheres.push(`${where.column} ${where.operator}`)
       } else {
-        q.push(`${where.column} ${where.operator} ?`)
+        wheres.push(`${where.column} ${where.operator} ?`)
         this._placeholders.push(where.value)
       }
     })
+    if (wheres.length > 0) q = q.concat(wheres.join(' and '))
     // Create the group by
     this._group.length > 0 && q.push(
       'group by',
@@ -118,26 +145,43 @@ export default class Builder {
     return q.join(' ')
   }
 
-  public async get() {
+  private getOption(key: string) {
+    if ((<any>this).options && (<any>this).options[key]) {
+      return (<any>this).options[key] as string
+    } else if ((<any>this)[`_${key}`]) {
+      return (<any>this)[`_${key}`]
+    } else {
+      return ''
+    }
+  }
+
+  public async get<T>(): Promise<T[] | null> {
     let query = this.toString()
-    let results = await DB.query(this._conn, query, this._placeholders)
+    console.log(query)
+    let results = await Root.query<T[]>(this._conn, query, this._placeholders)
     this.reset()
     return results
   }
 
-  public async first<T extends QueryResult>(): Promise<T | null> {
+  public async first<T>(): Promise<T | null> {
     this.limit(1)
     let query = this.toString()
-    let results = await DB.query(this._conn, query, this._placeholders)
+    let results = await Root.query<T[]>(this._conn, query, this._placeholders)
     this.reset()
-    if (results.length > 0) return results[0] as T
+    if (results) {
+      return results[0]
+    }
     return null
   }
 
   public async values(column: string) {
     this._select = []
     this.select(column)
-    return (await this.get()).reduce<any[]>((arr, val: any) => arr.concat(val[column]), [])
+    let result = await this.get()
+    if (result) {
+      return result.reduce<any[]>((arr, val: any) => arr.concat(val[column]), [])
+    }
+    return []
   }
 
   public async value(column: string) {
@@ -200,7 +244,7 @@ class Where {
   public operator: string = '='
   public value: string | number | null = ''
 
-  public constructor(column: string, value: string, operator = '=') {
+  public constructor(column: string, value: string | number | null, operator = '=') {
     this.column = column
     this.value = value
     this.operator = operator

@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "removeComments": true,
+    "strict": true,
+    "outDir": "lib",
+    "declaration": true,
+    "declarationDir": "typings",
+    "moduleResolution": "node"
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

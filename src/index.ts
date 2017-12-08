@@ -1,12 +1,9 @@
 import { DB, DatabaseConnections, DatabaseConnection } from "./DB";
-import { Model } from "./Model";
 
-function config(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true): any {
+export { Model as model } from "./Model";
+export { DB as db } from './DB'
+export { direction } from './BaseBuilder'
+
+export function connections(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true): any {
   DB.connect(config, throwError)
-}
-
-module.exports = {
-  config,
-  db: DB,
-  Model
 }

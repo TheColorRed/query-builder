@@ -1,8 +1,5 @@
-import * as mysql from 'mysql'
 import { DB } from "./DB";
 import { Builder } from "./Builder";
-import { Root } from "./Root";
-import { queryType } from './BuilderBase';
 
 export interface ModelCreator<T> extends Model {
   new(): T
@@ -42,7 +39,7 @@ export class Model extends Builder {
   public constructor(options: ModelOptions) {
     super(options)
     this._customModel = true
-    if (options.primaryKey && typeof options.primaryKey == 'string') options.primaryKey = [options.primaryKey]
+    if (options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
     this.options = Object.assign(<ModelOptions>{
       table: '',
       connection: '',
@@ -108,7 +105,6 @@ export class Model extends Builder {
   public static async firstOrNew<T extends ModelCreator<T>>(type: ModelCreator<T>, options: ModelItems): Promise<T> {
     let t = new type()
     t['_new'] = true
-    let builder = t.builder
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first() as any
     if (result) {

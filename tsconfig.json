@@ -7,7 +7,9 @@
     "outDir": "lib",
     "declaration": true,
     "declarationDir": "typings",
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
   },
   "include": [
     "src/**/*.ts"

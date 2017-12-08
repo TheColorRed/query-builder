@@ -1,5 +1,5 @@
 import * as mysql from 'mysql'
-import { packetCallback } from "mysql";
+import { packetCallback, Connection as MysqlConnection } from "mysql";
 import { Builder } from './Builder';
 import { Root } from './Root';
 
@@ -35,7 +35,16 @@ export class DB {
   public static get connections(): Connection[] { return this._connections }
 
   public static getConnection(name: string) {
-    return this._connections.find(c => c.name == name)
+    let conn = this._connections.find(c => c.name == name)
+    if (!conn) throw new Error(`The connection "${name}" does not exist`)
+    return conn
+  }
+
+  public static getDefaultConnection() {
+    let conn = this._connections.find(c => c.config.default === true)
+    if (!conn && this._connections[0]) conn = this._connections[0]
+    if (!conn) throw new Error('There are no connections setup')
+    return conn
   }
 
   public static connect(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true) {
@@ -64,18 +73,12 @@ export class DB {
   public static connection(name?: string) {
     let conn = name ? this._connections.find(c => c.name == name) : this._connections.find(c => c.config.default === true)
     if (!conn) conn = this._connections[0]
-    if (conn) {
-      return new Builder(conn.conn)
-    }
-    return null
+    if (!conn) { throw new Error('No connection avalible') }
+    return new Builder(conn.conn)
   }
 
   public static table(tableName: string) {
-    let conn = this._connections.find(c => c.config.default === true)
-    if (conn) {
-      return new Builder(conn.conn).table(tableName)
-    }
-    return null
+    return this.connection().table(tableName)
   }
 
   public static async select<T>(query: string, params?: any[]): Promise<T[] | null>
@@ -100,10 +103,10 @@ export class DB {
     return await <Promise<T[] | null>>Root.query(conn, query, params)
   }
 
-  public static async insert(query: string, params?: any[]): Promise<mysql.packetCallback | null>
-  public static async insert(conn: string, query: string, params?: any[]): Promise<mysql.packetCallback | null>
-  public static async insert(...args: any[]): Promise<mysql.packetCallback | null> {
-    let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
+  public static async insert(query: string, params?: any[]): Promise<packetCallback | null>
+  public static async insert(conn: string, query: string, params?: any[]): Promise<packetCallback | null>
+  public static async insert(...args: any[]): Promise<packetCallback | null> {
+    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
       conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]

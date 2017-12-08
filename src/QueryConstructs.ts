@@ -1,10 +1,8 @@
+import { joinType, direction } from "./BaseBuilder";
+
 export class Table {
   public name: string = ''
   public alias: string = ''
-
-  public constructor(name: string) {
-
-  }
 }
 
 export class Select {
@@ -29,6 +27,7 @@ export class Join {
 
   public constructor(type: joinType, table: string, columnA: string, operator: string, columnB: string) {
     this.table = table
+    this.joinType = type
     this.column = new Where(columnA, columnB, operator)
   }
 

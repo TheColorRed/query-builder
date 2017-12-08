@@ -1,10 +1,11 @@
-import * as mysql from 'mysql'
+import { Connection } from 'mysql'
+import { DB } from './DB';
 
 export class Root {
-  public static async query<T>(conn: mysql.Connection | undefined, query: string, placeholders: any[]): Promise<T | null> {
-    if (typeof conn == 'undefined') return Promise.resolve(null)
+  public static async query<T>(conn: Connection | undefined, query: string, placeholders: any[]): Promise<T> {
     return new Promise<Promise<T>>(resolve => {
-      conn.query(query, placeholders, (err, results, fields) => {
+      if (!conn) conn = DB.getDefaultConnection().conn
+      conn.query(query, placeholders, (err, results) => {
         if (err) throw err
         resolve(results)
       })

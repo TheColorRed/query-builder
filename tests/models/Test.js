@@ -1,6 +1,6 @@
-const { Model } = require('../../lib')
+const { model } = require('../../lib')
 
-module.exports = class Test extends Model {
+module.exports = class Test extends model {
 
   constructor() {
     super({

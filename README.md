@@ -1,3 +1,40 @@
+## Installation
+
+To install the query-builder, you can install it using npm:
+
+```
+npm install query-builder
+```
+
+## Introduction
+
+This is a node.js library that utilizes the [mysql](https://www.npmjs.com/package/mysql) npm driver.
+
+Here is an example of how to use the query builder:
+
+```js
+let { init, db } = require('query-builder')
+
+init({
+  myConnection: {
+    connection: {
+      host: 'localhost',
+      user: 'me',
+      password: 'secret',
+      database: 'my_db'
+    }
+  }
+})
+
+db.table('users')
+  .where('id', 12345)
+  .first()
+  .then(user => {
+    console.log(user.username)
+    db.disconnect()
+  })
+```
+
 ## Connections
 
 The query builder can handle many connection configurations. Calling config should only be called once within the application, because connections stay open once the application starts. You can set up configurations like this:

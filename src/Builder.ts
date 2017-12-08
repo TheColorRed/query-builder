@@ -1,6 +1,6 @@
-import * as mysql from 'mysql'
+import { Connection, packetCallback } from 'mysql'
 import { Root } from './Root'
-import { ModelOptions, ModelItems } from './Model';
+import { ModelSettings, ModelItems } from './Model';
 import { DB } from './DB';
 import { BaseBuilder, queryType } from './BaseBuilder';
 
@@ -8,12 +8,12 @@ export class QueryResult { }
 
 export class Builder extends BaseBuilder {
 
-  public constructor(connection: mysql.Connection | ModelOptions) {
+  public constructor(connection: Connection | ModelSettings) {
     super()
     if (connection && 'connection' in connection && (<any>connection).connection.length > 0) {
-      this._conn = DB.getConnection((<ModelOptions>connection).connection || '').conn
+      this._conn = DB.getConnection((<ModelSettings>connection).connection || '').conn
     } else if ('threadId' in connection) {
-      this._conn = connection as mysql.Connection
+      this._conn = connection as Connection
     } else {
       let conn = DB.connections.find(c => c.config.default === true)
       if (conn) {
@@ -22,45 +22,42 @@ export class Builder extends BaseBuilder {
     }
   }
 
-  public async insert(): Promise<mysql.packetCallback | null | boolean> {
+  public async insert(): Promise<packetCallback | boolean> {
     this.queryType = queryType.insert
-    if (this._set.length == 0) return false
-    let query = this.toString()
-    let results = await Root.query<mysql.packetCallback>(this._conn, query, this._placeholders)
+    if (this.opt.set.length == 0) return false
+    let results = await this.query<packetCallback>()
     this.reset()
-    if (results) {
-      return results
-    }
-    return null
+    return results
   }
 
-  public async update(update?: ModelItems): Promise<mysql.packetCallback | null> {
+  public async update(update?: ModelItems): Promise<packetCallback | null> {
     this.queryType = queryType.update
     if (update) {
       for (let key in update) {
         this.set(key, update[key])
       }
     }
-    let query = this.toString()
-    let results = await Root.query<mysql.packetCallback>(this._conn, query, this._placeholders)
+    let results = await this.query<packetCallback>()
     this.reset()
-    if (results) {
-      return results
-    }
-    return null
+    return results
+  }
+
+  public async delete() {
+    this.queryType = queryType.delete
+    let results = await this.query<packetCallback>()
+    this.reset()
+    return results
   }
 
   public async get<T>(): Promise<T[]> {
-    let query = this.toString()
-    let results = await Root.query<T[]>(this._conn, query, this._placeholders)
+    let results = await this.query<T[]>()
     this.reset()
     return results
   }
 
   public async first<T>(): Promise<T | null> {
     this.limit(1)
-    let query = this.toString()
-    let results = await Root.query<T[]>(this._conn, query, this._placeholders)
+    let results = await this.query<T[]>()
     this.reset()
     if (results && results[0]) {
       return results[0]
@@ -69,7 +66,7 @@ export class Builder extends BaseBuilder {
   }
 
   public async values(column: string) {
-    this._select = []
+    this.opt.select = []
     this.select(column)
     let result = await this.get()
     if (result) {
@@ -78,10 +75,35 @@ export class Builder extends BaseBuilder {
     return []
   }
 
-  public async value(column: string) {
-    this._select = []
+  public async value<T>(column: string): Promise<T> {
+    this.opt.select = []
     this.select(column)
     return (await this.first() as any)[column]
+  }
+
+  public async chunk<T>(records: number, callback: (rows: T[]) => void) {
+    let offset = 0
+    let results: T[] = []
+    let totalResults = 0
+    do {
+      this.limit(records, offset)
+      results = await this.query<T[]>()
+      if (results.length > 0) { callback(results) }
+      offset += records
+      totalResults += results.length
+    } while (results.length == records)
+    this.reset()
+    return totalResults
+  }
+
+  public async count(column: string = '*', distinct: boolean = false) {
+    this.opt.select = []
+    this.select(`count(${distinct ? 'distinct' : ''} ${column}) as total`)
+    return (await this.first() as any)['total']
+  }
+
+  private async query<T>() {
+    return await Root.query<T>(this._conn, this.toString(), this._placeholders)
   }
 
 }

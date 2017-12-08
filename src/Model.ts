@@ -5,7 +5,7 @@ export interface ModelCreator<T> extends Model {
   new(): T
 }
 
-export interface ModelOptions {
+export interface ModelSettings {
   table: string
   connection?: string | undefined
   primaryKey?: string | string[]
@@ -21,26 +21,24 @@ export class Model extends Builder {
 
   public items: ModelItems = {}
 
-  protected options: ModelOptions
+  protected settings: ModelSettings
   protected _dirty: boolean = false
   protected _new: boolean = false
   protected _customModel: boolean = false
 
   public get builder() {
-    let conn = DB.connection(this.options.connection)
-    if (conn) {
-      return conn.table(this.options.table)
-    }
-    return null
+    let conn = DB.connection(this.settings.connection)
+    if (!conn) throw new Error('Could not get a connection')
+    return conn.table(this.settings.table)
   }
 
   public get isNew(): boolean { return this._new }
 
-  public constructor(options: ModelOptions) {
+  public constructor(options: ModelSettings) {
     super(options)
     this._customModel = true
     if (options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
-    this.options = Object.assign(<ModelOptions>{
+    this.settings = Object.assign(<ModelSettings>{
       table: '',
       connection: '',
       hidden: [],
@@ -63,13 +61,13 @@ export class Model extends Builder {
     if (builder) {
       // Creates an update
       if (!this._new) {
-        if (Array.isArray(this.options.primaryKey) && this.options.primaryKey.length > 0) {
+        if (Array.isArray(this.settings.primaryKey) && this.settings.primaryKey.length > 0) {
           for (let key in this.items) {
-            builder.set(key, this.items[key])
+            if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
+              builder.set(key, this.items[key])
+            }
           }
-          for (let key of this.options.primaryKey) {
-            builder.where(key, this.items[key])
-          }
+          for (let key of this.settings.primaryKey) { builder.where(key, this.items[key]) }
         } else {
           // No primary keys set, we cannot do an update
           console.error(`No primary key(s) set on model "${this.constructor.name}", an update cannot be performed`)
@@ -82,7 +80,7 @@ export class Model extends Builder {
       // Creates an insert
       else {
         for (let key in this.items) {
-          if (this.options.fillable && this.options.fillable.indexOf(key) > -1) {
+          if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
             builder.set(key, this.items[key])
           }
         }

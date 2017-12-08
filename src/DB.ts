@@ -1,5 +1,5 @@
 import * as mysql from 'mysql'
-import { packetCallback, Connection as MysqlConnection } from "mysql";
+import { packetCallback, Query, Connection as MysqlConnection } from "mysql";
 import { Builder } from './Builder';
 import { Root } from './Root';
 
@@ -84,7 +84,7 @@ export class DB {
   public static async select<T>(query: string, params?: any[]): Promise<T[] | null>
   public static async select<T>(conn: string, query: string, params: any[]): Promise<T[] | null>
   public static async select<T>(...args: any[]): Promise<T[] | null> {
-    let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
+    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
       conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]
@@ -122,7 +122,7 @@ export class DB {
       throw new Error('Invalid number of aguments for insert')
     }
     if (conn) {
-      let insert = await Root.query<mysql.Query>(conn, query, params)
+      let insert = await Root.query<Query>(conn, query, params)
       if (insert) {
         return insert.OkPacket ? insert.OkPacket : insert.ErrorPacket
       }
@@ -130,10 +130,10 @@ export class DB {
     return null
   }
 
-  public static async delete(query: string, params?: any[]): Promise<mysql.packetCallback | null>
-  public static async delete(conn: string, query: string, params: any[]): Promise<mysql.packetCallback | null>
-  public static async delete(...args: any[]): Promise<mysql.packetCallback | null> {
-    let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
+  public static async delete(query: string, params?: any[]): Promise<packetCallback | null>
+  public static async delete(conn: string, query: string, params: any[]): Promise<packetCallback | null>
+  public static async delete(...args: any[]): Promise<packetCallback | null> {
+    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
       conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]
@@ -149,7 +149,7 @@ export class DB {
       throw new Error('Invalid number of aguments for delete')
     }
     if (!conn) return null
-    let del = await Root.query<mysql.Query>(conn, query, params)
+    let del = await Root.query<Query>(conn, query, params)
     if (del) {
       return del.OkPacket ? del.OkPacket : del.ErrorPacket
     }
@@ -160,10 +160,10 @@ export class DB {
 
 export class Connection {
   public name: string = ''
-  public conn: mysql.Connection
+  public conn: MysqlConnection
   public config: DatabaseConnection
 
-  public constructor(name: string, conn: mysql.Connection, config: DatabaseConnection) {
+  public constructor(name: string, conn: MysqlConnection, config: DatabaseConnection) {
     this.name = name
     this.conn = conn
     this.config = config

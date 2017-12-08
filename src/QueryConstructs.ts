@@ -1,5 +1,16 @@
 import { joinType, direction } from "./BaseBuilder";
 
+export function raw(data: string) {
+  return new Raw(data)
+}
+
+export class Raw {
+  public raw: string = ''
+  public constructor(data: string) {
+    this.raw = data
+  }
+}
+
 export class Table {
   public name: string = ''
   public alias: string = ''
@@ -36,14 +47,15 @@ export class Join {
 export class Where {
   public column: string = ''
   public operator: string = '='
-  public value: string | number | null = ''
+  public value: string | number | any[] | null = ''
 
-  public constructor(column: string, value: string | number | null, operator = '=') {
+  public constructor(column: string, value: string | number | any[] | null, operator = '=') {
     this.column = column
     this.value = value
     this.operator = operator
   }
 }
+
 
 export class Set extends Where {
   public constructor(column: string, value: string | number | null) {

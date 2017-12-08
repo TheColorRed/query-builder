@@ -1,22 +1,30 @@
 const Test = require('./models/Test')
-const { config, Model } = require('../lib')
-const mysql = config({
+const { init, db, raw } = require('../lib')
+
+init({
   gamesmart: {
     default: true,
     connection: {
       host: 'localhost',
       user: 'root',
       password: '',
-      database: 'littlebigapi'
+      database: 'gamesmart'
     }
   }
 });
 
 (async function () {
 
-  let r = await Model.firstOrNew(Test, { id: 13 })
-  r.set('name', Math.random())
-  console.log(await r.save())
+  let users = await db.table('users')
+    .where({ id: 1, username: 'TheColorRed' }).toString()
+  // .chunk(10, (rows) => {
+  //   console.log(rows.length)
+  //   rows.forEach(row => {
+  //     console.log(row.player_tag)
+  //   })
+  // })
+
+  console.log(users)
 
 
   // console.log(await new Test().userId(11).get())
@@ -39,5 +47,5 @@ const mysql = config({
   //     .orderBy('id')
   //     .value('player_tag')
   // )
-  mysql.disconnect()
+  db.disconnect()
 })()

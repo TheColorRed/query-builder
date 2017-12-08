@@ -1,6 +1,6 @@
 import * as mysql from 'mysql'
 
-export default class Root {
+export class Root {
   public static async query<T>(conn: mysql.Connection | undefined, query: string, placeholders: any[]): Promise<T | null> {
     if (typeof conn == 'undefined') return Promise.resolve(null)
     return new Promise<Promise<T>>(resolve => {

@@ -1,27 +1,30 @@
 import * as mysql from 'mysql'
-import Root from './Root';
-import DB, { Connection } from './DB';
-import { ModelOptions } from './Model';
+import { Root } from './Root'
+import { ModelOptions, ModelItems } from './Model';
+import { DB } from './DB';
+import { Where, Order, Join, Select, Set } from './QueryConstructs';
 
 export class QueryResult { }
 
 export enum direction { asc = 'asc', desc = 'desc' }
-export enum JoinType { join = 'join', leftJoin = 'left join', rightJoin = 'rightJoin' }
+export enum joinType { join = 'join', leftJoin = 'left join', rightJoin = 'rightJoin' }
+export enum queryType { select, insert, update, delete }
 
-export default class Builder extends Root {
+export class Builder extends Root {
 
-  private _conn: mysql.Connection
+  public queryType: queryType = queryType.select
 
-  private _table: string = ''
-  private _distinct: boolean = false
-  private _select: Select[] = []
-  private _join: Join[] = []
-  private _where: Where[] = []
-  private _order: Order[] = []
-  private _group: Order[] = []
-  private _placeholders: any[] = []
-  private _limit: number = -1
-
+  protected _conn: mysql.Connection
+  protected _table: string = ''
+  protected _distinct: boolean = false
+  protected _select: Select[] = []
+  protected _join: Join[] = []
+  protected _where: Where[] = []
+  protected _set: Set[] = []
+  protected _order: Order[] = []
+  protected _group: Order[] = []
+  protected _placeholders: any[] = []
+  protected _limit: number = -1
 
   public constructor(connection: mysql.Connection | ModelOptions) {
     super()
@@ -38,18 +41,6 @@ export default class Builder extends Root {
         this._conn = conn.conn
       }
     }
-  }
-
-  public table(table: string) {
-    this._table = table
-    return this
-  }
-
-  public select(...args: string[]): this {
-    args.forEach(arg => {
-      this._select.push(new Select(arg))
-    })
-    return this
   }
 
   public distinct() {
@@ -80,11 +71,6 @@ export default class Builder extends Root {
     return this
   }
 
-  public limit(limit: number): this {
-    this._limit = limit
-    return this
-  }
-
   public orderBy(column: string, dir: direction = direction.asc): this {
     this._order.push(new Order(column, dir))
     return this
@@ -96,28 +82,48 @@ export default class Builder extends Root {
   }
 
   public join(table: string, columnA: string, operator: string, columnB: string) {
-    this._join.push(new Join(JoinType.join, table, columnA, operator, columnB))
+    this._join.push(new Join(joinType.join, table, columnA, operator, columnB))
     return this
   }
 
   public leftJoin(table: string, columnA: string, operator: string, columnB: string) {
-    this._join.push(new Join(JoinType.leftJoin, table, columnA, operator, columnB))
+    this._join.push(new Join(joinType.leftJoin, table, columnA, operator, columnB))
     return this
   }
 
   public toString(): string {
     let q: string[] = []
     // Create the select
-    q.push('select')
-    // Make distinct
-    this._distinct && q.push('distinct')
-    this._select.length == 0 ? q.push('*') : this._select.forEach(select => q.push(select.raw))
-    // Create the from
-    q.push('from', this.getOption('table'))
+    switch (this.queryType) {
+      case queryType.select:
+        q.push('select')
+        // Make distinct
+        this._distinct && q.push('distinct')
+        // Create the from
+        this._select.length == 0 ? q.push('*') : this._select.forEach(select => q.push(select.raw))
+        q.push('from', this.getOption('table'))
+        break
+      case queryType.update:
+        q.push(`update ${this.getOption('table')}`)
+        break
+      case queryType.insert:
+        q.push(`insert into ${this.getOption('table')}`)
+        break
+    }
     // Create joins
     this._join.forEach(j => {
       q.push(`${j.joinType} ${j.table} on ${j.column.column} ${j.column.operator} ${j.column.value}`)
     })
+
+    // Create the set
+    this._set.length > 0 ? q.push('set') : null
+    let sets: string[] = []
+    this._set.forEach(set => {
+      sets.push(`${set.column} = ?`)
+      this._placeholders.push(set.value)
+    })
+    if (sets.length > 0) q = q.concat(sets.join(', '))
+
     // Create the where
     this._where.length > 0 ? q.push('where') : null
     let wheres: string[] = []
@@ -145,14 +151,53 @@ export default class Builder extends Root {
     return q.join(' ')
   }
 
-  private getOption(key: string) {
-    if ((<any>this).options && (<any>this).options[key]) {
-      return (<any>this).options[key] as string
-    } else if ((<any>this)[`_${key}`]) {
-      return (<any>this)[`_${key}`]
-    } else {
-      return ''
+  public table(table: string) {
+    this._table = table
+    return this
+  }
+
+  public select(...args: string[]): this {
+    args.forEach(arg => {
+      this._select.push(new Select(arg))
+    })
+    return this
+  }
+
+  public set(column: string, value: string) {
+    this._set.push(new Set(column, value))
+  }
+
+  public limit(limit: number): this {
+    this._limit = limit
+    return this
+  }
+
+  public async insert(): Promise<mysql.packetCallback | null | boolean> {
+    this.queryType = queryType.insert
+    if (this._set.length == 0) return false
+    let query = this.toString()
+    let results = await Root.query<mysql.packetCallback>(this._conn, query, this._placeholders)
+    this.reset()
+    if (results) {
+      return results
     }
+    return null
+  }
+
+  public async update(update?: ModelItems): Promise<mysql.packetCallback | null> {
+    this.queryType = queryType.update
+    if (update) {
+      for (let key in update) {
+        this.set(key, update[key])
+      }
+    }
+    let query = this.toString()
+    let results = await Root.query<mysql.packetCallback>(this._conn, query, this._placeholders)
+    this.reset()
+    if (results) {
+      return results
+    }
+    return null
   }
 
   public async get<T>(): Promise<T[] | null> {
@@ -194,68 +239,21 @@ export default class Builder extends Root {
     this._select = []
     this._join = []
     this._where = []
+    this._set = []
     this._order = []
     this._group = []
     this._limit = -1
     this._distinct = false
   }
 
-}
-
-class Table {
-  public name: string = ''
-  public alias: string = ''
-
-  public constructor(name: string) {
-
-  }
-}
-
-class Select {
-  public column: string = ''
-  public alias: string = ''
-  public raw: string = ''
-
-  public constructor(select: string) {
-    let cols = select.split(/\sas|\s/i).map(v => v.replace(/[^A-Z0-9_$]/ig, '').trim())
-    this.raw = select
-    this.column = cols[0]
-    if (cols.length == 2) {
-      this.alias = cols[1]
+  private getOption(key: string) {
+    if ((<any>this).options && (<any>this).options[key]) {
+      return (<any>this).options[key] as string
+    } else if ((<any>this)[`_${key}`]) {
+      return (<any>this)[`_${key}`]
+    } else {
+      return ''
     }
   }
-}
 
-class Join {
-  public joinType: JoinType = JoinType.join
-  public table: string = ''
-  public column: Where
-
-  public constructor(type: JoinType, table: string, columnA: string, operator: string, columnB: string) {
-    this.table = table
-    this.column = new Where(columnA, columnB, operator)
-  }
-
-}
-
-class Where {
-  public column: string = ''
-  public operator: string = '='
-  public value: string | number | null = ''
-
-  public constructor(column: string, value: string | number | null, operator = '=') {
-    this.column = column
-    this.value = value
-    this.operator = operator
-  }
-}
-
-class Order {
-  public column: string = ''
-  public direction: direction = direction.asc
-
-  public constructor(column: string, dir: direction = direction.asc) {
-    this.column = column
-    this.direction = dir
-  }
 }

@@ -1,21 +1,24 @@
 const Test = require('./models/Test')
-const Model = require('../lib/Model')
-const mysql = require('../lib')({
+const { config, Model } = require('../lib')
+const mysql = config({
   gamesmart: {
     default: true,
     connection: {
       host: 'localhost',
       user: 'root',
-      password: 'afrid123',
-      database: 'gamesmart'
+      password: '',
+      database: 'littlebigapi'
     }
   }
 });
 
 (async function () {
 
-  let r = await Model.firstOrNew(Test, { id: 1 })
-  console.log(r)
+  let r = await Model.firstOrNew(Test, { id: 13 })
+  r.set('name', Math.random())
+  console.log(await r.save())
+
+
   // console.log(await new Test().userId(11).get())
   // console.log(await mysql.table('test').toString())
 

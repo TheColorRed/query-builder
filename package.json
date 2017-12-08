@@ -12,6 +12,7 @@
         "mysql": "^2.15.0"
     },
     "devDependencies": {
-        "@types/mysql": "^2.15.2"
+        "@types/mysql": "^2.15.2",
+        "dotenv": "^4.0.0"
     }
 }

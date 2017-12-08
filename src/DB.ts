@@ -1,7 +1,7 @@
-import Builder from "./Builder";
 import * as mysql from 'mysql'
-import Root from "./Root";
 import { packetCallback } from "mysql";
+import { Builder } from './Builder';
+import { Root } from './Root';
 
 export interface DatabaseConnection {
   default?: boolean
@@ -28,7 +28,7 @@ export interface InsertInfo {
   changedRows: number
 }
 
-export default class DB {
+export class DB {
 
   private static _connections: Connection[] = []
 
@@ -79,11 +79,11 @@ export default class DB {
   }
 
   public static async select<T>(query: string, params?: any[]): Promise<T[] | null>
-  public static async select<T>(conn: mysql.Connection, query: string, params: any[]): Promise<T[] | null>
+  public static async select<T>(conn: string, query: string, params: any[]): Promise<T[] | null>
   public static async select<T>(...args: any[]): Promise<T[] | null> {
     let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = args[0]
+      conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {
@@ -101,11 +101,11 @@ export default class DB {
   }
 
   public static async insert(query: string, params?: any[]): Promise<mysql.packetCallback | null>
-  public static async insert(conn: mysql.Connection, query: string, params?: any[]): Promise<mysql.packetCallback | null>
+  public static async insert(conn: string, query: string, params?: any[]): Promise<mysql.packetCallback | null>
   public static async insert(...args: any[]): Promise<mysql.packetCallback | null> {
     let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = args[0]
+      conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {
@@ -128,11 +128,11 @@ export default class DB {
   }
 
   public static async delete(query: string, params?: any[]): Promise<mysql.packetCallback | null>
-  public static async delete(conn: mysql.Connection, query: string, params: any[]): Promise<mysql.packetCallback | null>
+  public static async delete(conn: string, query: string, params: any[]): Promise<mysql.packetCallback | null>
   public static async delete(...args: any[]): Promise<mysql.packetCallback | null> {
     let conn: mysql.Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = args[0]
+      conn = (<Connection>this.getConnection(args[0])).conn
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {

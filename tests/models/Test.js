@@ -1,19 +1,13 @@
-const Model = require('../../lib/Model')
+const { Model } = require('../../lib')
 
-module.exports = class Test extends Model.Model {
+module.exports = class Test extends Model {
 
   constructor() {
     super({
-      table: 'users'
+      table: 'test',
+      primaryKey: ['id'],
+      fillable: ['name']
     })
-  }
-
-  userId(id) {
-    return this.where('id', id)
-  }
-
-  userName(name) {
-    return this.where('name', name)
   }
 
 }

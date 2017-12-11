@@ -1,5 +1,5 @@
 import { Connection } from 'mysql'
-import { Root } from "./Root";
+import { QueryBuilder } from "./QueryBuilder";
 import { Select, Join, Where, Order, Set, Raw } from "./QueryConstructs";
 
 export enum direction { asc = 'asc', desc = 'desc', random = 'rand()' }
@@ -16,7 +16,7 @@ export interface Opts {
   group: (Order | Raw)[]
 }
 
-export class BaseBuilder extends Root {
+export class BaseBuilder extends QueryBuilder {
 
   public queryType: queryType = queryType.select
 
@@ -69,17 +69,21 @@ export class BaseBuilder extends Root {
     })
 
     // Create the set
-    this.opt.set.length > 0 ? q.push('set') : null
-    let sets: string[] = []
-    this.opt.set.forEach(set => {
-      if (set instanceof Raw) {
-        q.push(set.raw)
-      } else {
-        sets.push(`${set.column} = ?`)
-        this._placeholders.push(set.value)
-      }
-    })
-    if (sets.length > 0) q = q.concat(sets.join(', '))
+    if ([queryType.insert, queryType.update].indexOf(this.queryType) > -1) {
+      this.opt.set.length > 0 ? q.push('set') : null
+      let sets: string[] = []
+      this.opt.set.forEach(set => {
+        if (set instanceof Raw) {
+          q.push(set.raw)
+        } else if (set.value instanceof Raw) {
+          q.push(`${set.column} = ${set.value.raw}`)
+        } else {
+          sets.push(`${set.column} = ?`)
+          this._placeholders.push(set.value)
+        }
+      })
+      if (sets.length > 0) q = q.concat(sets.join(', '))
+    }
 
     // Create the where
     this.opt.where.length > 0 ? q.push('where') : null
@@ -127,6 +131,7 @@ export class BaseBuilder extends Root {
   public where(raw: Raw): this
   public where(obj: Object): this
   public where(column: string, value: string | number): this
+  public where(column: string, value: any[]): this
   public where(column: string, operator: string, value: string | number): this
   public where(...args: (string | number | Raw | Object)[]): this {
     if (args[0] instanceof Raw) {
@@ -198,8 +203,15 @@ export class BaseBuilder extends Root {
     return this
   }
 
-  public set(column: string, value: string) {
-    this.opt.set.push(new Set(column, value))
+  public setValue(value: Raw): this
+  public setValue(column: string, value: string | Raw): this
+  public setValue(...args: any[]): this {
+    if (args.length == 1 && args[0] instanceof Raw) {
+      this.opt.set.push(args[0])
+    } else if (args.length == 2) {
+      this.opt.set.push(new Set(args[0], args[1]))
+    }
+    return this
   }
 
   public limit(limit: number, offset: number = 0): this {

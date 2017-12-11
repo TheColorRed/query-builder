@@ -4,7 +4,7 @@ module.exports = class Test extends model {
 
   constructor() {
     super({
-      table: 'test',
+      table: 'inc',
       primaryKey: ['id'],
       fillable: ['name']
     })

@@ -1,5 +1,6 @@
+/// <reference path="../typings/index.d.ts"/>
 const Test = require('./models/Test')
-const { init, db, raw } = require('../lib')
+const { init, db, raw, model } = require('../lib')
 
 init({
   gamesmart: {
@@ -7,16 +8,18 @@ init({
     connection: {
       host: 'localhost',
       user: 'root',
-      password: '',
-      database: 'gamesmart'
+      password: 'afrid123',
+      database: 'test'
     }
   }
 });
 
 (async function () {
 
-  let users = await db.table('users')
-    .where({ id: 1, username: 'TheColorRed' }).toString()
+  let users = await (await new Test().where('id', [2, 4]).increment('viewed', 10)).get()
+
+  // let users = await db.table('users')
+  //   .where({ id: 1, username: 'TheColorRed' }).toString()
   // .chunk(10, (rows) => {
   //   console.log(rows.length)
   //   rows.forEach(row => {

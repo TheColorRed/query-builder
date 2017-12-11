@@ -47,9 +47,9 @@ export class Join {
 export class Where {
   public column: string = ''
   public operator: string = '='
-  public value: string | number | any[] | null = ''
+  public value: string | number | any[] | null | Raw = ''
 
-  public constructor(column: string, value: string | number | any[] | null, operator = '=') {
+  public constructor(column: string, value: string | number | any[] | null | Raw, operator = '=') {
     this.column = column
     this.value = value
     this.operator = operator
@@ -58,7 +58,7 @@ export class Where {
 
 
 export class Set extends Where {
-  public constructor(column: string, value: string | number | null) {
+  public constructor(column: string, value: string | number | null | Raw) {
     super(column, value)
   }
 }

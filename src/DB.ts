@@ -1,7 +1,7 @@
 import * as mysql from 'mysql'
 import { packetCallback, Query, Connection as MysqlConnection } from "mysql";
 import { Builder } from './Builder';
-import { Root } from './Root';
+import { QueryBuilder } from './QueryBuilder';
 
 export interface DatabaseConnection {
   default?: boolean
@@ -100,7 +100,7 @@ export class DB {
       throw new Error('Invalid number of aguments for select')
     }
     if (!conn) return null
-    return await <Promise<T[] | null>>Root.query(conn, query, params)
+    return await <Promise<T[] | null>>QueryBuilder.query(conn, query, params)
   }
 
   public static async insert(query: string, params?: any[]): Promise<packetCallback | null>
@@ -122,7 +122,7 @@ export class DB {
       throw new Error('Invalid number of aguments for insert')
     }
     if (conn) {
-      let insert = await Root.query<Query>(conn, query, params)
+      let insert = await QueryBuilder.query<Query>(conn, query, params)
       if (insert) {
         return insert.OkPacket ? insert.OkPacket : insert.ErrorPacket
       }
@@ -149,7 +149,7 @@ export class DB {
       throw new Error('Invalid number of aguments for delete')
     }
     if (!conn) return null
-    let del = await Root.query<Query>(conn, query, params)
+    let del = await QueryBuilder.query<Query>(conn, query, params)
     if (del) {
       return del.OkPacket ? del.OkPacket : del.ErrorPacket
     }

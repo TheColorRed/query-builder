@@ -1,5 +1,5 @@
 import { Connection, packetCallback } from 'mysql'
-import { Root } from './Root'
+import { QueryBuilder } from './QueryBuilder'
 import { ModelSettings, ModelItems } from './Model';
 import { DB } from './DB';
 import { BaseBuilder, queryType } from './BaseBuilder';
@@ -26,46 +26,48 @@ export class Builder extends BaseBuilder {
     this.queryType = queryType.insert
     if (this.opt.set.length == 0) return false
     let results = await this.query<packetCallback>()
-    this.reset()
     return results
   }
 
   public async update(update?: ModelItems): Promise<packetCallback | null> {
     this.queryType = queryType.update
+    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
     if (update) {
       for (let key in update) {
-        this.set(key, update[key])
+        this.setValue(key, update[key])
       }
     }
     let results = await this.query<packetCallback>()
-    this.reset()
     return results
   }
 
   public async delete() {
     this.queryType = queryType.delete
+    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
     let results = await this.query<packetCallback>()
-    this.reset()
     return results
   }
 
   public async get<T>(): Promise<T[]> {
+    this.queryType = queryType.select
     let results = await this.query<T[]>()
-    this.reset()
     return results
   }
 
-  public async first<T>(): Promise<T | null> {
+  public async first<T>(): Promise<T> {
+    this.queryType = queryType.select
+    let currentLimit = this._limit
     this.limit(1)
     let results = await this.query<T[]>()
-    this.reset()
+    this.limit(currentLimit)
     if (results && results[0]) {
       return results[0]
     }
-    return null
+    return {} as T
   }
 
   public async values(column: string) {
+    this.queryType = queryType.select
     this.opt.select = []
     this.select(column)
     let result = await this.get()
@@ -76,15 +78,18 @@ export class Builder extends BaseBuilder {
   }
 
   public async value<T>(column: string): Promise<T> {
+    this.queryType = queryType.select
     this.opt.select = []
     this.select(column)
     return (await this.first() as any)[column]
   }
 
   public async chunk<T>(records: number, callback: (rows: T[]) => void) {
+    this.queryType = queryType.select
     let offset = 0
     let results: T[] = []
     let totalResults = 0
+    let currentLimit = this._limit
     do {
       this.limit(records, offset)
       results = await this.query<T[]>()
@@ -92,18 +97,19 @@ export class Builder extends BaseBuilder {
       offset += records
       totalResults += results.length
     } while (results.length == records)
-    this.reset()
+    this.limit(currentLimit)
     return totalResults
   }
 
   public async count(column: string = '*', distinct: boolean = false) {
+    this.queryType = queryType.select
     this.opt.select = []
     this.select(`count(${distinct ? 'distinct' : ''} ${column}) as total`)
     return (await this.first() as any)['total']
   }
 
   private async query<T>() {
-    return await Root.query<T>(this._conn, this.toString(), this._placeholders)
+    return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
   }
 
 }

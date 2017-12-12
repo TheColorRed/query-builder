@@ -1,40 +1,17 @@
-import { DB } from "./DB";
-import { Builder } from "./Builder";
 import { raw } from "./QueryConstructs";
+import { ModelBase, ModelItems, ModelSettings } from "./ModelBase";
 
 export interface ModelType<T> extends Model<T> {
   new(): T
 }
 
-export interface ModelSettings {
-  table: string
-  connection?: string | undefined
-  primaryKey?: string[]
-  hidden?: string[]
-  fillable?: string[]
-}
+export class Model<I extends ModelItems> extends ModelBase<I> {
 
-export interface ModelItems {
-  [key: string]: any
-}
-
-export class Model<I extends ModelItems> extends Builder {
-
-  protected _items: I = <I>{}
-
-  protected settings: ModelSettings
-  protected _dirty: boolean = false
-  protected _new: boolean = false
-  protected _customModel: boolean = false
-
-  public get builder() {
-    let conn = DB.connection(this.settings.connection)
-    if (!conn) throw new Error('Could not get a connection')
-    return conn.table(this.settings.table)
-  }
-
-  public get new(): boolean { return this._new }
-  public get itemCount(): number { return Object.keys(this._items).length }
+  // public get builder() {
+  //   let conn = DB.connection(this.settings.connection)
+  //   if (!conn) throw new Error('Could not get a connection')
+  //   return conn.table(this.settings.table)
+  // }
 
   public constructor(options?: ModelSettings) {
     super(options)
@@ -71,7 +48,7 @@ export class Model<I extends ModelItems> extends Builder {
 
   public async save() {
     if (!this.isDirty()) return false
-    let builder = this.builder
+    let builder = ModelBase.create().table(this.settings.table)
     // Creates an update
     if (!this._new) {
       if (Array.isArray(this.settings.primaryKey) && this.settings.primaryKey.length > 0) {
@@ -124,14 +101,6 @@ export class Model<I extends ModelItems> extends Builder {
     return this
   }
 
-  public static create<T extends Model<any>, I extends ModelItems>(options?: I) {
-    let t = new this()
-    t['_new'] = true
-    if (options) for (let key in options) { t.set(key, options[key]) }
-    t['_dirty'] = true
-    return t as T
-  }
-
   public static async find<T extends Model<any>>(value: Object): Promise<T>
   public static async find<T extends Model<any>>(value: any): Promise<T>
   public static async find<T extends Model<any>>(...args: any[]): Promise<T> {
@@ -157,7 +126,7 @@ export class Model<I extends ModelItems> extends Builder {
         }
       }
       try {
-        return this.create(await t.first()) as T
+        return this.createFromExisting(await t.first()) as T
       } catch (e) {
         return t as T
       }
@@ -173,23 +142,26 @@ export class Model<I extends ModelItems> extends Builder {
     if (find.itemCount == 0) {
       throw new Error('Record was not found')
     }
-    find['_new'] = false
     return find as T
   }
 
   public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I) {
     let t = this.create(options)
-    t['_new'] = true
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first<I>()
     if (result) {
-      t['_new'] = false
-      for (let key in result) t.set(key, result[key])
-      t['_dirty'] = false
-    } else {
-      for (let key in options) { t.set(key, options[key]) }
+      t = this.createFromExisting(result)
     }
     return t as T
+  }
+
+  public static async all<I extends ModelItems>() {
+    return await this.create().get<I>()
+  }
+
+  public static toString() {
+    let t = this.create()
+    return t.toString()
   }
 
 }

@@ -17,7 +17,7 @@ export interface Opts {
   group: (Order | Raw)[]
 }
 
-export class BaseBuilder extends QueryBuilder {
+export class BuilderBase extends QueryBuilder {
 
   public queryType: queryType = queryType.select
 

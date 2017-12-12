@@ -15,8 +15,13 @@ export default class purchases extends model<Purchase> {
     })
   }
 
+  public static awesome() {
+    return this.create<purchases, Purchase>().awesome()
+  }
+
   public awesome() {
     console.log('hi')
+    return this
   }
 
 }

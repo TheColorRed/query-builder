@@ -1,12 +1,12 @@
 import { Connection, packetCallback } from 'mysql'
 import { QueryBuilder } from './QueryBuilder'
-import { ModelSettings, ModelItems } from './Model';
 import { DB } from './DB';
-import { BaseBuilder, queryType } from './BaseBuilder';
+import { BuilderBase, queryType } from './BuilderBase';
+import { ModelSettings, ModelItems } from './ModelBase';
 
 export class QueryResult { }
 
-export class Builder extends BaseBuilder {
+export class Builder extends BuilderBase {
 
   public constructor(connection?: Connection | ModelSettings) {
     super()

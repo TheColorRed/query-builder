@@ -1,4 +1,4 @@
-import { joinType, direction } from "./BaseBuilder";
+import { joinType, direction } from "./BuilderBase";
 
 export function raw(data: string) {
   return new Raw(data)
@@ -61,7 +61,7 @@ export class Between {
   public value1: string | number | any[] | null | Raw = ''
   public value2: string | number | any[] | null | Raw = ''
 
-  public constructor(column: string, value1: string | number | any[] | null | Raw,, value2: string | number | any[] | null | Raw) {
+  public constructor(column: string, value1: string | number | any[] | null | Raw, value2: string | number | any[] | null | Raw) {
     this.column = column
     this.value1 = value1
     this.value2 = value2

@@ -1,6 +1,8 @@
 import { init, db } from 'query-builder'
 import purchases, { Purchase } from './models/purchases'
 
+import * as assert from 'assert'
+
 init({
   test: {
     connection: {
@@ -12,27 +14,37 @@ init({
   }
 });
 
+// purchases.chunk(10, (rows) => {
+//   console.log(rows)
+// }).then(() => db.disconnect());
+
+
+purchases.create<purchases, Purchase>().awesome();
+
 (async () => {
-  await new purchases().delete()
-  // try {
-  //   let p = await purchases.findOrFail(2)
-  //   await p.delete()
-  //   console.log('Item deleted')
-  // } catch (e) {
-  //   console.log('No item found')
-  // }
-  // purchases.findOrFail(10).then(data => {
-  //   console.log(data)
-  //   db.disconnect()
-  // }).catch(e => {
-  //   console.log(e.message)
-  //   db.disconnect()
+  try {
+    // await purchases.create<purchases, Purchase>({ amount: Math.round(Math.random() * 1000) }).save()
+    // console.log(await purchases.all())
+  } catch (e) {
+    console.log(e.sql)
+    console.log(e.message)
+  }
+  // db.disconnect()
+  // describe('Saving Records', () => {
+  //   describe('#create()', () => {
+  //     it('should not throw an error', () => {
+  //       assert.doesNotThrow(async () => {
+  //       })
+  //     })
+  //   })
+  //   describe('#firstOrNew()', () => {
+  //     it('should not throw an error', () => {
+  //       assert.doesNotThrow(async () => {
+  //         let first = await purchases.firstOrNew<purchases, Purchase>({ amount: 5000 })
+  //         first.save()
+  //       })
+  //     })
+  //   })
   // })
-  // try {
-  //   let find = await purchases.findOrFail({ id: 1 })
-  //   console.log(find)
-  // } catch (e) {
-  //   console.log(e.message)
-  // }
-  db.disconnect()
+
 })()

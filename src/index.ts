@@ -3,7 +3,7 @@ import { Connection } from 'mysql'
 
 export { Model as model } from './Model'
 export { DB as db } from './DB'
-export { direction, queryType } from './BaseBuilder'
+export { direction, queryType } from './BuilderBase'
 export { raw } from './QueryConstructs'
 export { QueryBuilder } from './QueryBuilder'
 

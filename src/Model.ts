@@ -132,9 +132,9 @@ export class Model<I extends ModelItems> extends Builder {
     return t as T
   }
 
-  public static async find(value: Object): Promise<any>
-  public static async find(value: any): Promise<any>
-  public static async find(...args: any[]): Promise<any> {
+  public static async find<T extends Model<any>>(value: Object): Promise<T>
+  public static async find<T extends Model<any>>(value: any): Promise<T>
+  public static async find<T extends Model<any>>(...args: any[]): Promise<T> {
     let t = this.create()
     if (t.settings.primaryKey && t.settings.primaryKey.length > 0) {
       let primaryKeys = t.settings.primaryKey
@@ -157,24 +157,24 @@ export class Model<I extends ModelItems> extends Builder {
         }
       }
       try {
-        return this.create(await t.first())
+        return this.create(await t.first()) as T
       } catch (e) {
-        console.log('here')
-        return t
+        return t as T
       }
     } else {
       throw new Error(`No primary key(s) set on the model "${this.name}".`)
     }
   }
 
-  public static async findOrFail(value: Object): Promise<any>
-  public static async findOrFail(value: any): Promise<any>
-  public static async findOrFail(arg: any): Promise<any> {
-    let find = await this.find(arg)
+  public static async findOrFail<T extends Model<any>>(value: Object): Promise<T>
+  public static async findOrFail<T extends Model<any>>(value: any): Promise<T>
+  public static async findOrFail<T extends Model<any>>(arg: any): Promise<T> {
+    let find = await this.find(arg) as T
     if (find.itemCount == 0) {
       throw new Error('Record was not found')
     }
-    return find
+    find['_new'] = false
+    return find as T
   }
 
   public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I) {

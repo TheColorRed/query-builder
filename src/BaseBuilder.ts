@@ -1,6 +1,6 @@
 import { Connection } from 'mysql'
 import { QueryBuilder } from "./QueryBuilder";
-import { Select, Join, Where, Order, Set, Raw } from "./QueryConstructs";
+import { Select, Join, Where, Order, Set, Raw, Between } from "./QueryConstructs";
 
 export enum direction { asc = 'asc', desc = 'desc', random = 'rand()' }
 export enum joinType { join = 'join', leftJoin = 'left join', rightJoin = 'right join' }
@@ -11,6 +11,7 @@ export interface Opts {
   select: (Select | Raw)[]
   join: (Join | Raw)[]
   where: (Where | Raw)[]
+  between: (Between | Raw)[]
   set: (Set | Raw)[]
   order: (Order | Raw)[]
   group: (Order | Raw)[]
@@ -28,6 +29,7 @@ export class BaseBuilder extends QueryBuilder {
     select: [],
     join: [],
     where: [],
+    between: [],
     set: [],
     order: [],
     group: [],
@@ -55,7 +57,9 @@ export class BaseBuilder extends QueryBuilder {
         // Make distinct
         this._distinct && q.push('distinct')
         // Create the from
-        this.opt.select.length == 0 ? q.push('*') : this.opt.select.forEach(select => q.push(select.raw))
+        let sel: any[] = []
+        this.opt.select.length == 0 ? q.push('*') : this.opt.select.forEach(select => sel.push(select.raw))
+        q.push(sel.join(', '))
         q.push('from', table)
         break
     }
@@ -86,7 +90,7 @@ export class BaseBuilder extends QueryBuilder {
     }
 
     // Create the where
-    this.opt.where.length > 0 ? q.push('where') : null
+    this.opt.where.length > 0 || this.opt.between.length > 0 ? q.push('where') : null
     let wheres: string[] = []
     this.opt.where.forEach(where => {
       if (where instanceof Raw) {
@@ -107,7 +111,17 @@ export class BaseBuilder extends QueryBuilder {
         }
       }
     })
+    this.opt.between.forEach(between => {
+      if (between instanceof Between) {
+        wheres.push(`${between.column} between ? and ?`)
+        this._placeholders.push(between.value1, between.value2)
+      } else {
+        wheres.push(between.raw)
+      }
+    })
     if (wheres.length > 0) q = q.concat(wheres.join(' and '))
+    // Create the betweens
+
     // Create the group by
     this.opt.group.length > 0 && q.push(
       'group by',
@@ -157,6 +171,11 @@ export class BaseBuilder extends QueryBuilder {
 
   public whereNotNull(column: string) {
     this.opt.where.push(new Where(column, null, 'is not null'))
+    return this
+  }
+
+  public between(column: string, value1: any, value2: any) {
+    this.opt.between.push(new Between(column, value1, value2))
     return this
   }
 

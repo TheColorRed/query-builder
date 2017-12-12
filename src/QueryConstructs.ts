@@ -56,6 +56,18 @@ export class Where {
   }
 }
 
+export class Between {
+  public column: string = ''
+  public value1: string | number | any[] | null | Raw = ''
+  public value2: string | number | any[] | null | Raw = ''
+
+  public constructor(column: string, value1: string | number | any[] | null | Raw,, value2: string | number | any[] | null | Raw) {
+    this.column = column
+    this.value1 = value1
+    this.value2 = value2
+  }
+}
+
 
 export class Set extends Where {
   public constructor(column: string, value: string | number | null | Raw) {

@@ -115,12 +115,12 @@ export class Builder extends BaseBuilder {
     return (await this.first() as any)['total']
   }
 
-  public async firstOrFail() {
-    let first = await this.first()
+  public async firstOrFail<T>(): Promise<T> {
+    let first = await this.first() as T
     if (Object.keys(first).length == 0) {
       throw new Error('Record was not found')
     }
-    return first
+    return first as T
   }
 
   private async query<T>() {

@@ -16,5 +16,5 @@ export function mysql(connectionName?: string): Connection {
 }
 
 export function init(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true): any {
-  DB.connect(config, throwError)
+  DB.init(config, throwError)
 }

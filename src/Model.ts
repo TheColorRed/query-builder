@@ -20,7 +20,7 @@ export interface ModelItems {
 
 export class Model<I extends ModelItems> extends Builder {
 
-  protected items: I = <I>{}
+  protected _items: I = <I>{}
 
   protected settings: ModelSettings
   protected _dirty: boolean = false
@@ -34,11 +34,12 @@ export class Model<I extends ModelItems> extends Builder {
   }
 
   public get new(): boolean { return this._new }
+  public get itemCount(): number { return Object.keys(this._items).length }
 
-  public constructor(options: ModelSettings) {
+  public constructor(options?: ModelSettings) {
     super(options)
     this._customModel = true
-    if (options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
+    if (options && options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
     this.settings = Object.assign(<ModelSettings>{
       table: '',
       connection: '',
@@ -56,14 +57,14 @@ export class Model<I extends ModelItems> extends Builder {
   public set(...args: any[]): this {
     if (args.length == 1 && args[0] instanceof Object) {
       for (let key in args[0]) {
-        let current = this.items[key]
-        this.items[key] = args[0][key]
-        if (current != this.items[key]) { this._dirty = true }
+        let current = this._items[key]
+        this._items[key] = args[0][key]
+        if (current != this._items[key]) { this._dirty = true }
       }
     } else if (args.length == 2) {
-      let current = this.items[args[0]]
-      this.items[args[0]] = args[1]
-      if (current != this.items[args[0]]) { this._dirty = true }
+      let current = this._items[args[0]]
+      this._items[args[0]] = args[1]
+      if (current != this._items[args[0]]) { this._dirty = true }
     }
     return this
   }
@@ -74,12 +75,12 @@ export class Model<I extends ModelItems> extends Builder {
     // Creates an update
     if (!this._new) {
       if (Array.isArray(this.settings.primaryKey) && this.settings.primaryKey.length > 0) {
-        for (let key in this.items) {
+        for (let key in this._items) {
           if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
-            builder.setValue(key, this.items[key])
+            builder.setValue(key, this._items[key])
           }
         }
-        for (let key of this.settings.primaryKey) { builder.where(key, this.items[key]) }
+        for (let key of this.settings.primaryKey) { builder.where(key, this._items[key]) }
       } else {
         // No primary keys set, we cannot do an update
         console.error(`No primary key(s) set on model "${this.constructor.name}", an update cannot be performed`)
@@ -91,15 +92,22 @@ export class Model<I extends ModelItems> extends Builder {
     }
     // Creates an insert
     else {
-      for (let key in this.items) {
+      for (let key in this._items) {
         if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
-          builder.setValue(key, this.items[key])
+          builder.setValue(key, this._items[key])
         }
       }
       let insert = await builder.insert()
       if (insert) this._dirty = false
       return insert
     }
+  }
+
+  public async delete() {
+    for (let key in this._items) {
+      this.where(key, this._items[key])
+    }
+    return await super.delete()
   }
 
   public async increment(columns: { [key: string]: number }): Promise<any>
@@ -116,16 +124,61 @@ export class Model<I extends ModelItems> extends Builder {
     return this
   }
 
-  public create(options?: ModelItems) {
-    let t = Object.create(this)
+  public static create<T extends Model<any>, I extends ModelItems>(options?: I) {
+    let t = new this()
     t['_new'] = true
-    if (options) for (let key in options) { t.setValue(key, options[key]) }
-    t['_dirty'] = false
-    return t
+    if (options) for (let key in options) { t.set(key, options[key]) }
+    t['_dirty'] = true
+    return t as T
   }
 
-  public async firstOrNew(options: ModelItems): Promise<this> {
-    let t = this.create(options) as this
+  public static async find(value: Object): Promise<any>
+  public static async find(value: any): Promise<any>
+  public static async find(...args: any[]): Promise<any> {
+    let t = this.create()
+    if (t.settings.primaryKey && t.settings.primaryKey.length > 0) {
+      let primaryKeys = t.settings.primaryKey
+      if (args.length == 1 && args[0] instanceof Object) {
+        if (Object.keys(args[0]).length != primaryKeys.length) {
+          throw new Error(`Invalid keys passed in. "${this.name}" Requires: "[${primaryKeys.toString()}]".`)
+        }
+        for (let key in args[0]) {
+          if (primaryKeys.indexOf(key) > -1) {
+            t.where(key, args[0][key])
+          } else {
+            throw new Error(`The key "${key}" does not exist on the model "${this.name}". Required keys are: "[${primaryKeys.toString()}]".`)
+          }
+        }
+      } else if (args.length == 1) {
+        if (primaryKeys.length == 1) {
+          t.where(primaryKeys[0], args[0])
+        } else {
+          throw new Error(`The model "${this.name}" has more than one primary key, use an object instead.`)
+        }
+      }
+      try {
+        return this.create(await t.first())
+      } catch (e) {
+        console.log('here')
+        return t
+      }
+    } else {
+      throw new Error(`No primary key(s) set on the model "${this.name}".`)
+    }
+  }
+
+  public static async findOrFail(value: Object): Promise<any>
+  public static async findOrFail(value: any): Promise<any>
+  public static async findOrFail(arg: any): Promise<any> {
+    let find = await this.find(arg)
+    if (find.itemCount == 0) {
+      throw new Error('Record was not found')
+    }
+    return find
+  }
+
+  public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I) {
+    let t = this.create(options)
     t['_new'] = true
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first<I>()
@@ -136,20 +189,7 @@ export class Model<I extends ModelItems> extends Builder {
     } else {
       for (let key in options) { t.set(key, options[key]) }
     }
-    return t
-  }
-
-  public async firstOrFail(options: ModelItems): Promise<this | false> {
-    let t = this.create(options) as this
-    t['_new'] = false
-    for (let key in options) { t.where(key, options[key]) }
-    let result = await t.first<I>()
-    if (result) {
-      for (let key in result) t.set(key, result[key])
-      t['_dirty'] = false
-      return t
-    }
-    return false
+    return t as T
   }
 
 }

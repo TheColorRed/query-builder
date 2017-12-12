@@ -8,11 +8,11 @@ export class QueryResult { }
 
 export class Builder extends BaseBuilder {
 
-  public constructor(connection: Connection | ModelSettings) {
+  public constructor(connection?: Connection | ModelSettings) {
     super()
     if (connection && 'connection' in connection && (<any>connection).connection.length > 0) {
       this._conn = DB.getConnection((<ModelSettings>connection).connection || '').conn
-    } else if ('threadId' in connection) {
+    } else if (connection && 'threadId' in connection) {
       this._conn = connection as Connection
     } else {
       let conn = DB.connections.find(c => c.config.default === true)
@@ -43,7 +43,9 @@ export class Builder extends BaseBuilder {
 
   public async delete() {
     this.queryType = queryType.delete
-    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
+    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) {
+      throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
+    }
     let results = await this.query<packetCallback>()
     return results
   }
@@ -66,22 +68,27 @@ export class Builder extends BaseBuilder {
     return {} as T
   }
 
+  public async value<T>(column: string): Promise<T> {
+    this.queryType = queryType.select
+    let currentSelect = this.opt.select
+    this.opt.select = []
+    this.select(column)
+    let first = await this.first() as any
+    this.opt.select = currentSelect
+    return first[column]
+  }
+
   public async values(column: string) {
     this.queryType = queryType.select
+    let currentSelect = this.opt.select
     this.opt.select = []
     this.select(column)
     let result = await this.get()
+    this.opt.select = currentSelect
     if (result) {
       return result.reduce<any[]>((arr, val: any) => arr.concat(val[column]), [])
     }
     return []
-  }
-
-  public async value<T>(column: string): Promise<T> {
-    this.queryType = queryType.select
-    this.opt.select = []
-    this.select(column)
-    return (await this.first() as any)[column]
   }
 
   public async chunk<T>(records: number, callback: (rows: T[]) => void) {
@@ -108,8 +115,20 @@ export class Builder extends BaseBuilder {
     return (await this.first() as any)['total']
   }
 
+  public async firstOrFail() {
+    let first = await this.first()
+    if (Object.keys(first).length == 0) {
+      throw new Error('Record was not found')
+    }
+    return first
+  }
+
   private async query<T>() {
-    return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
+    try {
+      return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
+    } catch (e) {
+      throw e
+    }
   }
 
 }

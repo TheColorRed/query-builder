@@ -1,4 +1,4 @@
-const { model } = require('../../lib')
+const { model } = require('query-builder')
 
 module.exports = class Test extends model {
 

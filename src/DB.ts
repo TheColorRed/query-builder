@@ -47,7 +47,7 @@ export class DB {
     return conn
   }
 
-  public static connect(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true) {
+  public static init(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true) {
     for (let name in config) {
       let conn = mysql.createConnection(config[name].connection)
       conn.connect((err) => {
@@ -57,6 +57,29 @@ export class DB {
       this._connections.push(new Connection(name, conn, config[name]))
     }
     return this
+  }
+
+  public static connect(connection?: string, throwError: boolean = true) {
+    if (!connection) {
+      for (let conn of this._connections) {
+        if (!conn.conn) {
+          let c = mysql.createConnection(conn.config.connection)
+          c.connect((err) => {
+            if (err && !throwError) console.error(new Error().stack)
+            if (err && throwError) throw err
+          })
+        }
+      }
+    } else {
+      let conn = this._connections.find(c => c.name == connection)
+      if (conn) {
+        let c = mysql.createConnection(conn.config.connection)
+        c.connect((err) => {
+          if (err && !throwError) console.error(new Error().stack)
+          if (err && throwError) throw err
+        })
+      }
+    }
   }
 
   public static disconnect(connection?: string) {

@@ -1,6 +1,5 @@
-/// <reference path="../typings/index.d.ts"/>
 const Test = require('./models/Test')
-const { init, db, raw, model } = require('../lib')
+const { init, db, raw, model } = require('query-builder')
 
 init({
   gamesmart: {
@@ -8,14 +7,14 @@ init({
     connection: {
       host: 'localhost',
       user: 'root',
-      password: 'afrid123',
+      password: '',
       database: 'test'
     }
   }
 });
 
 (async function () {
-
+  new Test()
   let users = await (await new Test().where('id', [2, 4]).increment('viewed', 10)).get()
 
   // let users = await db.table('users')

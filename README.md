@@ -150,16 +150,58 @@ app.get('/:first/:last', async (req, res) => {
 });
 ```
 
+### Retrieving rows with query builder
+
+There are multiple ways to get results from the database, and each method may modify your query to optimize the query speed such as `first()`, `value()` and `chunk()`.
+
+### get()
+
+`get()` will return an array of rows that match the query.
+
+### first()
+
+`first()` will return the first row found in the database. It will temporarily modify the limit to `limit 1` before it is ran to optimize the query speed.
+
+### value(column)
+
+`value()` will return the specified columns value of the first row found in the database. This runs `first()` then gets the result.
+
+### values(column)
+
+`values()` will return an array of values of the specified column.
+
+### chunk(results, callback(rows))
+
+`chunk()` will run multiple queries returning a maximum number of results specified by `results` in each chunk until there are no more results left. Each chunk of rows will be passed to the callback.
+
+```js
+// Get all purchases where amount > 200
+// Chunk the results into groups of 1000 rows
+// Assuming there are 2000 matching records it will run these 3 queries:
+// "select * from purchases where amount > 200 limit 0, 1000"
+// "select * from purchases where amount > 200 limit 1000, 1000"
+// "select * from purchases where amount > 200 limit 2000, 1000"
+new purchases().where('amount', '>', 200).chunk(1000, (rows) => {
+  rows.forEach(row => {
+    // Do something with the row
+  });
+});
+```
+
+Q: In this example we run 3 queries. Why not 2?
+
+A: Because, our second query returns the the max number of results, so it is possible that there is more, so a 3rd query is ran to check. If there were only 999 results returned in the second query a 3rd query would not be run.
+
 ## Models
 
 Models create database table structures. They define how the application and the data relate to one another. This helps for building queries quickly.
 
-Here is an example of a simple Model. We start off by creating a class that extends the `Model` class. In the constructor we call the model's super and pass in a object of settings that the model should adhere to.
+Here is an example of a simple Model. We start off by creating a class that extends the `model` class. In the constructor we call the model's super and pass in a object of settings that the model should adhere to.
 
 ```js
-const { Model } = require('query-builder')
+const { model } = require('query-builder')
 
-module.exports = class Users extends Model {
+module.exports = class users extends model {
   constructor() {
     super({
       table: 'users',
@@ -177,8 +219,7 @@ module.exports = class Users extends Model {
 Next we can use this model the following way
 
 ```js
-const { Model } = require('query-builder');
-const Users = require('./models/users');
+const users = require('./models/users');
 
 ///////////////////////////////////////////////////
 /// The connection should already have been made
@@ -187,25 +228,28 @@ const Users = require('./models/users');
 
 (async () => {
   // Get the user
-  let user = await Model.firstOrNew(Users, { id: 1 });
+  let user = await users.firstOrNew({ id: 1 });
   // If the user with an id of 1 is not found create a new user
-  if (user.isNew) {
+  if (user.new) {
     // These keys MUST be in the "fillable" array within the Model.
     // Values not in the fillable array will be skipped.
-    user.set('username', 'MrAwesome');
-    user.set('password', genPassHash('abc123'));
-    user.set('email', 'example@example.com');
-    // This is not in the fillable array, it will be ignored:
-    user.set('dob', '1990-01-01');
+    user.set({
+      username: 'MrAwesome',
+      password: genPassHash('abc123'),
+      email: 'example@example.com',
+      // This is not in the fillable array, it will be ignored:
+      dob: '1990-01-01'
+    });
+    // Insert as a new item
+    let info = await user.save();
+    console.log(info.insertId);
   }
-  // Insert a new item or update the current item
-  await user.save();
 })();
 ```
 
-In the above example we utilize the `User Model` that was created
+In the above example we utilize the `user` model that was created in the previous code block.
 
-1. Using `Model.firstOrNew()` we pass the type of model we want to it, the we pass an object of `where` items.
-2. When the result comes back we can check and see if this is a new item or an existing item with `user.isNew`.
+1. Using `user.firstOrNew()` we pass an object of `where` items to identify the item in the database.
+2. When the result comes back we can check and see if this is a new item or an existing item with `user.new`.
 3. If it is a new item we will set the columns, otherwise we will continue on.
 4. Next we save the items. If the model is dirty it will run the query otherwise it will just exit and return `false`.

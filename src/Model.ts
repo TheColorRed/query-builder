@@ -64,7 +64,10 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
         return false
       }
       let update = await builder.update()
-      if (update) this._dirty = false
+      if (update) {
+        builder._dirty = false
+        builder._new = false
+      }
       return update
     }
     // Creates an insert
@@ -75,7 +78,10 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
         }
       }
       let insert = await builder.insert()
-      if (insert) this._dirty = false
+      if (insert) {
+        builder._dirty = false
+        builder._new = false
+      }
       return insert
     }
   }
@@ -145,12 +151,28 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     return find as T
   }
 
-  public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I) {
-    let t = this.create(options)
+  public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I, newOptions: I) {
+    let t = this.create()
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first<I>()
-    if (result) {
+    if (Object.keys(result).length > 0) {
       t = this.createFromExisting(result)
+    } else {
+      t = this.create(Object.assign(options, newOptions))
+    }
+    return t as T
+  }
+
+  public static async firstOrCreate<T extends Model<any>, I extends ModelItems>(options: I, newOptions?: I) {
+    let t = this.create()
+    for (let key in options) { t.where(key, options[key]) }
+    let result = await t.first<I>()
+    if (Object.keys(result).length > 0) {
+      t = this.createFromExisting(result)
+    } else {
+      t = this.create(Object.assign(options, newOptions))
+      await t.save()
+      t._dirty = false
     }
     return t as T
   }

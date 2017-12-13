@@ -4,6 +4,7 @@ import { Select, Join, Where, Order, Set, Raw, Between } from "./QueryConstructs
 
 export enum direction { asc = 'asc', desc = 'desc', random = 'rand()' }
 export enum joinType { join = 'join', leftJoin = 'left join', rightJoin = 'right join' }
+export enum condition { and = 'and', or = 'or' }
 export enum queryType { select, insert, update, delete }
 
 export interface Opts {
@@ -104,22 +105,23 @@ export class BuilderBase extends QueryBuilder {
             ins.push('?')
             this._placeholders.push(val)
           })
-          wheres.push(`${where.column} in(${ins.join(',')})`)
+          wheres.push(`${wheres.length > 0 ? where.condition : ''} ${where.column} in(${ins.join(',')})`)
         } else {
-          wheres.push(`${where.column} ${where.operator} ?`)
+          wheres.push(`${wheres.length > 0 ? where.condition : ''} ${where.column} ${where.operator} ?`)
           this._placeholders.push(where.value)
         }
       }
     })
     this.opt.between.forEach(between => {
       if (between instanceof Between) {
-        wheres.push(`${between.column} between ? and ?`)
+        wheres.push(`${wheres.length > 0 ? between.condition : ''} ${between.column} between ? and ?`)
         this._placeholders.push(between.value1, between.value2)
       } else {
         wheres.push(between.raw)
       }
     })
-    if (wheres.length > 0) q = q.concat(wheres.join(' and '))
+    if (wheres.length > 0) q = q.concat(wheres.join(' '))
+    // if (wheres.length > 0) q = q.concat(wheres.join(' and '))
     // Create the betweens
 
     // Create the group by
@@ -164,6 +166,28 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
+  public orWhere(raw: Raw): this
+  public orWhere(obj: Object): this
+  public orWhere(column: string, value: string | number): this
+  public orWhere(column: string, value: any[]): this
+  public orWhere(column: string, operator: string, value: string | number): this
+  public orWhere(...args: (string | number | Raw | Object)[]): this {
+    if (args[0] instanceof Raw) {
+      this.opt.where.push(args[0] as Raw)
+    } else if (args[0] instanceof Object) {
+      for (let key in <any>args[0]) {
+        this.opt.where.push(new Where(key, (<any>args[0])[key], '=', condition.or))
+      }
+    } else if (args.length == 2) {
+      this.opt.where.push(new Where(<string>args[0], <any>args[1], '=', condition.or))
+    } else if (args.length == 3) {
+      this.opt.where.push(new Where(<string>args[0], <any>args[2], <string>args[1], condition.or))
+    } else {
+      throw new Error('Invalid number of "where" arguments')
+    }
+    return this
+  }
+
   public whereNull(column: string) {
     this.opt.where.push(new Where(column, null, 'is null'))
     return this
@@ -175,6 +199,11 @@ export class BuilderBase extends QueryBuilder {
   }
 
   public between(column: string, value1: any, value2: any) {
+    this.opt.between.push(new Between(column, value1, value2))
+    return this
+  }
+
+  public orBetween(column: string, value1: any, value2: any) {
     this.opt.between.push(new Between(column, value1, value2))
     return this
   }

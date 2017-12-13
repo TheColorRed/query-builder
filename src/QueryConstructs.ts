@@ -1,4 +1,4 @@
-import { joinType, direction } from "./BuilderBase";
+import { joinType, direction, condition } from "./BuilderBase";
 
 export function raw(data: string) {
   return new Raw(data)
@@ -48,11 +48,13 @@ export class Where {
   public column: string = ''
   public operator: string = '='
   public value: string | number | any[] | null | Raw = ''
+  public condition: condition = condition.and
 
-  public constructor(column: string, value: string | number | any[] | null | Raw, operator = '=') {
+  public constructor(column: string, value: string | number | any[] | null | Raw, operator = '=', cond: condition = condition.and) {
     this.column = column
     this.value = value
     this.operator = operator
+    this.condition = cond
   }
 }
 
@@ -60,11 +62,13 @@ export class Between {
   public column: string = ''
   public value1: string | number | any[] | null | Raw = ''
   public value2: string | number | any[] | null | Raw = ''
+  public condition: condition = condition.and
 
-  public constructor(column: string, value1: string | number | any[] | null | Raw, value2: string | number | any[] | null | Raw) {
+  public constructor(column: string, value1: string | number | any[] | null | Raw, value2: string | number | any[] | null | Raw, cond: condition = condition.and) {
     this.column = column
     this.value1 = value1
     this.value2 = value2
+    this.condition = cond
   }
 }
 

@@ -7,12 +7,6 @@ export interface ModelType<T> extends Model<T> {
 
 export class Model<I extends ModelItems> extends ModelBase<I> {
 
-  // public get builder() {
-  //   let conn = DB.connection(this.settings.connection)
-  //   if (!conn) throw new Error('Could not get a connection')
-  //   return conn.table(this.settings.table)
-  // }
-
   public constructor(options?: ModelSettings) {
     super(options)
     this._customModel = true

@@ -1,9 +1,9 @@
-import { init, db } from 'query-builder'
+import { initdb, db } from 'query-builder'
 import purchases, { Purchase } from './models/purchases'
 
 import * as assert from 'assert'
 
-init({
+initdb({
   test: {
     connection: {
       host: 'localhost',
@@ -19,16 +19,24 @@ init({
 // }).then(() => db.disconnect());
 
 
-purchases.create<purchases, Purchase>().awesome();
+// purchases.create<purchases, Purchase>().awesome();
 
 (async () => {
-  try {
-    // await purchases.create<purchases, Purchase>({ amount: Math.round(Math.random() * 1000) }).save()
-    // console.log(await purchases.all())
-  } catch (e) {
-    console.log(e.sql)
-    console.log(e.message)
-  }
+  // try {
+  //   // await purchases.create<purchases, Purchase>({ amount: Math.round(Math.random() * 1000) }).save()
+  //   // console.log(await purchases.all())
+  // } catch (e) {
+  //   console.log(e.sql)
+  //   console.log(e.message)
+  // }
+
+  let p = await purchases.firstOrCreate<purchases, Purchase>({ id: 100 }, {
+    amount: 123
+  })
+
+  console.log(p.item('amount'))
+  db.disconnect()
+
   // db.disconnect()
   // describe('Saving Records', () => {
   //   describe('#create()', () => {

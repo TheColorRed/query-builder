@@ -15,6 +15,6 @@ export function mysql(connectionName?: string): Connection {
   return (connectionName ? DB.getConnection(connectionName) : DB.getDefaultConnection()).conn
 }
 
-export function init(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true): any {
+export function initdb(config: DatabaseConnections<DatabaseConnection>, throwError: boolean = true): any {
   DB.init(config, throwError)
 }

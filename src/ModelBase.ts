@@ -27,6 +27,10 @@ export class ModelBase<I extends ModelItems> extends Builder {
   public get new(): boolean { return this._new }
   public get itemCount(): number { return Object.keys(this._items).length }
 
+  public item(key: string, defaultValue: any = '') {
+    return this._items[key] ? this._items[key] : defaultValue
+  }
+
   public static create<T extends Model<any>, I extends ModelItems>(options?: I) {
     let t = new this() as T
     if (options) for (let key in options) { t.set(key, options[key]) }

@@ -13,9 +13,9 @@ This is a node.js library that utilizes the [mysql](https://www.npmjs.com/packag
 Here is an example of how to use the query builder:
 
 ```js
-let { init, db } = require('query-builder')
+let { initdb, db } = require('query-builder')
 
-init({
+initdb({
   myConnection: {
     connection: {
       host: 'localhost',
@@ -37,12 +37,12 @@ db.table('users')
 
 ## Connections
 
-The query builder can handle many connection configurations. Calling config should only be called once within the application, because connections stay open once the application starts. You can set up configurations like this:
+The query builder can handle many connection configurations. Calling `initdb` should only be called once within the application, because connections stay open once the application starts. You can set up configurations like this:
 
 ```js
-const { config } = require('query-builder');
+const { initdb } = require('query-builder');
 
-let mysql = config({
+initdb({
   connectionA: {
     default: true,
     connection: {
@@ -63,7 +63,7 @@ let mysql = config({
 });
 ```
 
-* `connectionA | connectionB`: This is the name of the connection. It can be anything.
+* `connectionA | connectionB`: This is the name of the connection. It can be pretty much any valid JavaScript property.
 * `default`: This is the default connection and there should only be one, otherwise you might get unexpected results. If you have only one connection than this option is optional.
 * `connection`: This is a list of connection options. For a full list of connection options see: [Connection Options](https://www.npmjs.com/package/mysql#connection-options) in the mysql package.
 
@@ -74,17 +74,17 @@ const { db } = require('query-builder');
 
 // Set your connection config
 
-db.connection('connectionA')
+db.connection('connectionA');
 ```
 
-You can also select the default connection by calling `table`
+You can also select the default connection by calling `table`. If only one connection is difined, it automatically is the default connection.
 
 ```js
 const { db } = require('query-builder');
 
 // Set your connection config
 
-db.table('users')
+db.table('users');
 ```
 
 ## Raw Queries
@@ -228,19 +228,15 @@ const users = require('./models/users');
 
 (async () => {
   // Get the user
-  let user = await users.firstOrNew({ id: 1 });
+  let user = await users.firstOrNew({ id: 1 }, {
+    username: 'MrAwesome',
+    password: genPassHash('abc123'),
+    email: 'example@example.com',
+    // This is not in the fillable array, it will be ignored:
+    dob: '1990-01-01'
+  });
   // If the user with an id of 1 is not found create a new user
   if (user.new) {
-    // These keys MUST be in the "fillable" array within the Model.
-    // Values not in the fillable array will be skipped.
-    user.set({
-      username: 'MrAwesome',
-      password: genPassHash('abc123'),
-      email: 'example@example.com',
-      // This is not in the fillable array, it will be ignored:
-      dob: '1990-01-01'
-    });
-    // Insert as a new item
     let info = await user.save();
     console.log(info.insertId);
   }
@@ -253,3 +249,26 @@ In the above example we utilize the `user` model that was created in the previou
 2. When the result comes back we can check and see if this is a new item or an existing item with `user.new`.
 3. If it is a new item we will set the columns, otherwise we will continue on.
 4. Next we save the items. If the model is dirty it will run the query otherwise it will just exit and return `false`.
+
+We can also automatically inesrt the record using `firstOrCreate()` which will automatically insert the record if one does not exist. This way `save()` does't have to be called.
+
+```js
+const users = require('./models/users');
+
+///////////////////////////////////////////////////
+/// The connection should already have been made
+/// See: Connections
+///////////////////////////////////////////////////
+
+(async () => {
+  // Get the user
+  let user = await users.firstOrCreate({ id: 1 }, {
+    username: 'MrAwesome',
+    password: genPassHash('abc123'),
+    email: 'example@example.com',
+    // This is not in the fillable array, it will be ignored:
+    dob: '1990-01-01'
+  });
+  console.log(user.item('id'));
+})();
+```

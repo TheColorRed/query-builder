@@ -1,20 +1,38 @@
 {
-    "name": "query-builder",
-    "version": "1.0.0",
-    "description": "",
-    "main": "./lib/index.js",
-    "types": "./typings/index.d.ts",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "author": "",
-    "license": "ISC",
-    "dependencies": {
-        "mysql": "^2.15.0"
-    },
-    "devDependencies": {
-        "@types/mocha": "^2.2.44",
-        "@types/mysql": "^2.15.2",
-        "dotenv": "^4.0.0"
-    }
+  "name": "blueberrypie",
+  "version": "1.0.0",
+  "description": "Create and run database queries from a query builder and/or a model",
+  "main": "./lib/index.js",
+  "types": "./typings/index.d.ts",
+  "scripts": {
+    "prepack": "rm -r lib typings && tsc -p ."
+  },
+  "repository": {
+    "url": "https://github.com/TheColorRed/query-builder",
+    "type": "git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheColorRed/query-builder/issues"
+  },
+  "author": {
+    "name": "Ryan Naddy",
+    "email": "untuned20@gmail.com"
+  },
+  "keywords": [
+    "query",
+    "builder",
+    "database",
+    "models",
+    "sql",
+    "mysql"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "mysql": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/mocha": "^2.2.44",
+    "@types/mysql": "^2.15.2",
+    "dotenv": "^4.0.0"
+  }
 }

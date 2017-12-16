@@ -1,19 +1,19 @@
 ## Installation
 
-To install the query-builder, you can install it using npm:
+To install blueberrypie, use npm:
 
 ```
-npm install query-builder
+npm install blueberrypie
 ```
 
 ## Introduction
 
-This is a node.js library that utilizes the [mysql](https://www.npmjs.com/package/mysql) npm driver.
+QueryBuilder is a node.js library that utilizes the [mysql](https://www.npmjs.com/package/mysql) npm driver.
 
-Here is an example of how to use the query builder:
+Here is a basic example of how to use the query builder:
 
 ```js
-let { initdb, db } = require('query-builder')
+let { initdb, db } = require('blueberrypie')
 
 initdb({
   myConnection: {
@@ -40,7 +40,7 @@ db.table('users')
 The query builder can handle many connection configurations. Calling `initdb` should only be called once within the application, because connections stay open once the application starts. You can set up configurations like this:
 
 ```js
-const { initdb } = require('query-builder');
+const { initdb } = require('blueberrypie');
 
 initdb({
   connectionA: {
@@ -70,7 +70,7 @@ initdb({
 To connect to a specific connection you can call the `connection()` method from `db`
 
 ```js
-const { db } = require('query-builder');
+const { db } = require('blueberrypie');
 
 // Set your connection config
 
@@ -80,7 +80,7 @@ db.connection('connectionA');
 You can also select the default connection by calling `table`. If only one connection is difined, it automatically is the default connection.
 
 ```js
-const { db } = require('query-builder');
+const { db } = require('blueberrypie');
 
 // Set your connection config
 
@@ -94,7 +94,7 @@ Sometimes you need to run raw queries, to do so it is made easy by calling the c
 To run an insert you can call the `insert()` method. This will return information about the insert such as the `insertId`.
 
 ```js
-const { db } = require('query-builder');
+const { db } = require('blueberrypie');
 
 // Set your connection config
 
@@ -115,7 +115,7 @@ db.insert('connectionB', 'insert into users (username) values (?)', ['MyUser']);
 The query builder is how you can quickly make queries without writing the actual query. It is very helpful when you want to build a query and have lots of if statements or just because you can.
 
 ```js
-const { db } = require('query-builder');
+const { db } = require('blueberrypie');
 
 // Make connection to database
 
@@ -136,7 +136,7 @@ Take this express example, we hit a route and pass `first/last` name as route pa
 
 ```js
 // require express here
-const { db } = require('query-builder');
+const { db } = require('blueberrypie');
 
 // Make connection to database
 // Connect to an express app
@@ -199,7 +199,7 @@ Models create database table structures. They define how the application and the
 Here is an example of a simple Model. We start off by creating a class that extends the `model` class. In the constructor we call the model's super and pass in a object of settings that the model should adhere to.
 
 ```js
-const { model } = require('query-builder')
+const { model } = require('blueberrypie')
 
 module.exports = class users extends model {
   constructor() {

@@ -8,7 +8,9 @@ export interface ModelSettings {
   connection?: string | undefined
   primaryKey?: string[]
   hidden?: string[]
-  fillable?: string[]
+  fillable?: string[],
+  columns?: string[],
+  attributes?: string[]
 }
 
 export interface ModelItems {
@@ -19,16 +21,57 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   protected _items: I = <I>{}
 
-  protected settings: ModelSettings
+  protected _settings: ModelSettings
   protected _dirty: boolean = false
   protected _new: boolean = false
   protected _customModel: boolean = false
 
   public get new(): boolean { return this._new }
   public get itemCount(): number { return Object.keys(this._items).length }
+  public get attributes(): I { return this._items }
 
   public item(key: string, defaultValue: any = '') {
-    return this._items[key] ? this._items[key] : defaultValue
+    return this._items[key] || defaultValue
+  }
+
+  public isPrimary(column: string): boolean {
+    return (this._settings.primaryKey || false) && this._settings.primaryKey.indexOf(column) > -1
+  }
+
+  public isFillable(column: string): boolean {
+    return (this._settings.fillable || false) && this._settings.fillable.indexOf(column) > -1
+  }
+
+  public hasColumn(column: string): boolean {
+    if (this._settings.columns && this._settings.columns.indexOf(column) > -1)
+      return true
+    if (this._settings.fillable && this._settings.fillable.indexOf(column) > -1)
+      return true
+    if (this._settings.primaryKey && this._settings.primaryKey.indexOf(column) > -1)
+      return true
+    return false
+  }
+
+  public toObject() {
+    let obj: { [key: string]: any } = {}
+    for (let key in this._items) {
+      if (this._settings.hidden && this._settings.hidden.indexOf(key) == -1) {
+        obj[key] = this._items[key]
+      }
+    }
+    this._settings.attributes && this._settings.attributes.forEach(attr => {
+      let origAttr = attr
+      attr = attr.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); })
+      attr = attr.charAt(0).toUpperCase() + attr.slice(1)
+      if (typeof (<any>this)[`get${attr}Attribute`] == 'function') {
+        obj[origAttr] = (<any>this)[`get${attr}Attribute`]()
+      }
+    })
+    return obj
+  }
+
+  public toJson() {
+    return JSON.stringify(this.toObject())
   }
 
   public static create<T extends Model<any>, I extends ModelItems>(options?: I) {
@@ -58,6 +101,23 @@ export class ModelBase<I extends ModelItems> extends Builder {
   public static where<T extends Model<any>>(...args: any[]): T {
     return this.create().where(...args) as T
   }
+  public static orWhere<T extends Model<any>>(raw: Raw): T
+  public static orWhere<T extends Model<any>>(obj: Object): T
+  public static orWhere<T extends Model<any>>(column: string, value: string | number): T
+  public static orWhere<T extends Model<any>>(column: string, value: any[]): T
+  public static orWhere<T extends Model<any>>(column: string, operator: string, value: string | number): T
+  public static orWhere<T extends Model<any>>(...args: (string | number | Raw | Object)[]): T {
+    return this.create().orWhere(...args)
+  }
+
+  public static whereHaving<T extends Model<any>>(raw: Raw): T
+  public static whereHaving<T extends Model<any>>(obj: Object): T
+  public static whereHaving<T extends Model<any>>(column: string, value: string | number): T
+  public static whereHaving<T extends Model<any>>(column: string, value: any[]): T
+  public static whereHaving<T extends Model<any>>(column: string, operator: string, value: string | number): T
+  public static whereHaving<T extends Model<any>>(...args: (string | number | Raw | Object)[]): T {
+    return this.create().whereHaving(...args)
+  }
 
   public static whereNull<T extends Model<any>>(column: string) {
     return this.create().whereNull(column) as T
@@ -69,6 +129,10 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   public static between<T extends Model<any>>(column: string, value1: any, value2: any) {
     return this.create().between(column, value1, value2) as T
+  }
+
+  public static betweenHaving(column: string, value1: any, value2: any) {
+    return this.create().betweenHaving(column, value1, value2)
   }
 
   public static orderBy<T extends Model<any>>(dir: direction): Model<any>
@@ -99,6 +163,10 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   public static select<T extends Model<any>>(...args: (string | Raw)[]) {
     return this.create().select(...args) as T
+  }
+
+  public static addSelect<T extends Model<any>>(...args: (string | Raw)[]) {
+    return this.create().addSelect(...args) as T
   }
 
   public static async chunk<T extends Model<any>>(records: number, callback: (rows: T[]) => void) {

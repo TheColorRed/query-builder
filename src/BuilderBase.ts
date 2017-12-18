@@ -12,7 +12,9 @@ export interface Opts {
   select: (Select | Raw)[]
   join: (Join | Raw)[]
   where: (Where | Raw)[]
+  havingWhere: (Where | Raw)[]
   between: (Between | Raw)[]
+  havingBetween: (Between | Raw)[]
   set: (Set | Raw)[]
   order: (Order | Raw)[]
   group: (Order | Raw)[]
@@ -27,10 +29,12 @@ export class BuilderBase extends QueryBuilder {
   protected _distinct: boolean = false
   protected _placeholders: any[] = []
   protected opt: Opts = {
-    select: [],
+    select: [new Select('*')],
     join: [],
     where: [],
+    havingWhere: [],
     between: [],
+    havingBetween: [],
     set: [],
     order: [],
     group: [],
@@ -129,6 +133,38 @@ export class BuilderBase extends QueryBuilder {
       'group by',
       this.opt.group.reduce<string[]>((arr, val) => arr.concat(`${val instanceof Raw ? val.raw : `${val.column}   ${val.direction}`}`), []).join(', ')
     )
+    // Creating the having
+    // Create the where
+    this.opt.havingWhere.length > 0 || this.opt.havingBetween.length > 0 ? q.push('having') : null
+    let having: string[] = []
+    this.opt.havingWhere.forEach(have => {
+      if (have instanceof Raw) {
+        q.push(have.raw)
+      } else {
+        if (have.value === null) {
+          having.push(`${have.column} ${have.operator}`)
+        } else if (Array.isArray(have.value)) {
+          let ins: string[] = []
+          have.value.forEach(val => {
+            ins.push('?')
+            this._placeholders.push(val)
+          })
+          having.push(`${having.length > 0 ? have.condition : ''} ${have.column} in(${ins.join(',')})`)
+        } else {
+          having.push(`${having.length > 0 ? have.condition : ''} ${have.column} ${have.operator} ?`)
+          this._placeholders.push(have.value)
+        }
+      }
+    })
+    this.opt.havingBetween.forEach(between => {
+      if (between instanceof Between) {
+        having.push(`${having.length > 0 ? between.condition : ''} ${between.column} between ? and ?`)
+        this._placeholders.push(between.value1, between.value2)
+      } else {
+        having.push(between.raw)
+      }
+    })
+    if (having.length > 0) q = q.concat(having.join(' '))
     // Create the order by
     this.opt.order.length > 0 && q.push(
       'order by',
@@ -160,6 +196,28 @@ export class BuilderBase extends QueryBuilder {
       this.opt.where.push(new Where(<string>args[0], <any>args[1]))
     } else if (args.length == 3) {
       this.opt.where.push(new Where(<string>args[0], <any>args[2], <string>args[1]))
+    } else {
+      throw new Error('Invalid number of "where" arguments')
+    }
+    return this
+  }
+
+  public whereHaving(raw: Raw): this
+  public whereHaving(obj: Object): this
+  public whereHaving(column: string, value: string | number): this
+  public whereHaving(column: string, value: any[]): this
+  public whereHaving(column: string, operator: string, value: string | number): this
+  public whereHaving(...args: (string | number | Raw | Object)[]): this {
+    if (args[0] instanceof Raw) {
+      this.opt.havingWhere.push(args[0] as Raw)
+    } else if (args[0] instanceof Object) {
+      for (let key in <any>args[0]) {
+        this.opt.havingWhere.push(new Where(key, (<any>args[0])[key]))
+      }
+    } else if (args.length == 2) {
+      this.opt.havingWhere.push(new Where(<string>args[0], <any>args[1]))
+    } else if (args.length == 3) {
+      this.opt.havingWhere.push(new Where(<string>args[0], <any>args[2], <string>args[1]))
     } else {
       throw new Error('Invalid number of "where" arguments')
     }
@@ -208,6 +266,11 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
+  public betweenHaving(column: string, value1: any, value2: any) {
+    this.opt.havingBetween.push(new Between(column, value1, value2))
+    return this
+  }
+
   public orderBy(dir: direction): this
   public orderBy(column: string, dir: direction): this
   public orderBy(...args: any[]): this {
@@ -245,6 +308,14 @@ export class BuilderBase extends QueryBuilder {
   }
 
   public select(...args: (string | Raw)[]): this {
+    this.opt.select = []
+    args.forEach(arg => {
+      this.opt.select.push(arg instanceof Raw ? arg : new Select(arg))
+    })
+    return this
+  }
+
+  public addSelect(...args: (string | Raw)[]): this {
     args.forEach(arg => {
       this.opt.select.push(arg instanceof Raw ? arg : new Select(arg))
     })

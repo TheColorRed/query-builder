@@ -11,14 +11,14 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     super(options)
     this._customModel = true
     if (options && options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
-    this.settings = Object.assign(<ModelSettings>{
+    this._settings = Object.assign(<ModelSettings>{
       table: '',
       connection: '',
       hidden: [],
       primaryKey: [],
       fillable: []
     }, options)
-    this._table = this.settings.table
+    this._table = this._settings.table
   }
 
   public isDirty(): boolean { return this._dirty }
@@ -42,16 +42,16 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
 
   public async save() {
     if (!this.isDirty()) return false
-    let builder = ModelBase.create().table(this.settings.table)
+    let builder = ModelBase.create().table(this._settings.table)
     // Creates an update
     if (!this._new) {
-      if (Array.isArray(this.settings.primaryKey) && this.settings.primaryKey.length > 0) {
+      if (Array.isArray(this._settings.primaryKey) && this._settings.primaryKey.length > 0) {
         for (let key in this._items) {
-          if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
+          if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
             builder.setValue(key, this._items[key])
           }
         }
-        for (let key of this.settings.primaryKey) { builder.where(key, this._items[key]) }
+        for (let key of this._settings.primaryKey) { builder.where(key, this._items[key]) }
       } else {
         // No primary keys set, we cannot do an update
         console.error(`No primary key(s) set on model "${this.constructor.name}", an update cannot be performed`)
@@ -67,7 +67,7 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     // Creates an insert
     else {
       for (let key in this._items) {
-        if (this.settings.fillable && this.settings.fillable.indexOf(key) > -1) {
+        if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
           builder.setValue(key, this._items[key])
         }
       }
@@ -105,8 +105,8 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
   public static async find<T extends Model<any>>(value: any): Promise<T>
   public static async find<T extends Model<any>>(...args: any[]): Promise<T> {
     let t = this.create()
-    if (t.settings.primaryKey && t.settings.primaryKey.length > 0) {
-      let primaryKeys = t.settings.primaryKey
+    if (t._settings.primaryKey && t._settings.primaryKey.length > 0) {
+      let primaryKeys = t._settings.primaryKey
       if (args.length == 1 && args[0] instanceof Object) {
         if (Object.keys(args[0]).length != primaryKeys.length) {
           throw new Error(`Invalid keys passed in. "${this.name}" Requires: "[${primaryKeys.toString()}]".`)

@@ -1,5 +1,7 @@
 import { raw } from "./QueryConstructs";
 import { ModelBase, ModelItems, ModelSettings } from "./ModelBase";
+import { Row } from "./Row";
+import DataSet from "./DataSet";
 
 export interface ModelType<T> extends Model<T> {
   new(): T
@@ -19,6 +21,11 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
       fillable: []
     }, options)
     this._table = this._settings.table
+  }
+
+  public async get() {
+    this._items = await super.get()
+    return this._items
   }
 
   public isDirty(): boolean { return this._dirty }
@@ -101,9 +108,9 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     return this
   }
 
-  public static async find<T extends Model<any>>(value: Object): Promise<T>
-  public static async find<T extends Model<any>>(value: any): Promise<T>
-  public static async find<T extends Model<any>>(...args: any[]): Promise<T> {
+  public static async find<T extends ModelItems>(value: Object): Promise<Row<T>>
+  public static async find<T extends ModelItems>(value: any): Promise<Row<T>>
+  public static async find<T extends ModelItems>(...args: any[]): Promise<Row<T>> {
     let t = this.create()
     if (t._settings.primaryKey && t._settings.primaryKey.length > 0) {
       let primaryKeys = t._settings.primaryKey
@@ -126,27 +133,27 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
         }
       }
       try {
-        return this.createFromExisting(await t.first()) as T
+        return await t.first<T>()
       } catch (e) {
-        return t as T
+        return new Row
       }
     } else {
       throw new Error(`No primary key(s) set on the model "${this.name}".`)
     }
   }
 
-  public static async findOrFail<T extends Model<any>>(value: Object): Promise<T>
-  public static async findOrFail<T extends Model<any>>(value: any): Promise<T>
-  public static async findOrFail<T extends Model<any>>(arg: any): Promise<T> {
-    let find = await this.find(arg) as T
+  public static async findOrFail<T extends Model<any>, I extends ModelItems>(value: Object): Promise<T & I>
+  public static async findOrFail<T extends Model<any>, I extends ModelItems>(value: any): Promise<T & I>
+  public static async findOrFail<T extends Model<any>, I extends ModelItems>(arg: any): Promise<T & I> {
+    let find = await this.find(arg) as T & I
     if (find.itemCount == 0) {
       throw new Error('Record was not found')
     }
-    return find as T
+    return find
   }
 
   public static async firstOrNew<T extends Model<any>, I extends ModelItems>(options: I, newOptions: I) {
-    let t = this.create()
+    let t = this.create() as T & I
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first<I>()
     if (Object.keys(result).length > 0) {
@@ -154,11 +161,11 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     } else {
       t = this.create(Object.assign(options, newOptions))
     }
-    return t as T
+    return t
   }
 
   public static async firstOrCreate<T extends Model<any>, I extends ModelItems>(options: I, newOptions?: I) {
-    let t = this.create()
+    let t = this.create() as T & I
     for (let key in options) { t.where(key, options[key]) }
     let result = await t.first<I>()
     if (Object.keys(result).length > 0) {
@@ -166,9 +173,9 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     } else {
       t = this.create(Object.assign(options, newOptions))
       await t.save()
-      t._dirty = false
+      // t._dirty = false
     }
-    return t as T
+    return t
   }
 
   public static async all<I extends ModelItems>() {

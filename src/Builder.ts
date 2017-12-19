@@ -3,6 +3,8 @@ import { QueryBuilder } from './QueryBuilder'
 import { DB } from './DB';
 import { BuilderBase, queryType } from './BuilderBase';
 import { ModelSettings, ModelItems } from './ModelBase';
+import DataSet from './DataSet';
+import { Row } from './Row';
 
 export class QueryResult { }
 
@@ -50,22 +52,25 @@ export class Builder extends BuilderBase {
     return results
   }
 
-  public async get<T>(): Promise<T[]> {
+  // public async get<I extends ModelItems>(): Promise<DataSet<I>> {
+  public async get(): Promise<DataSet<any>> {
     this.queryType = queryType.select
-    let results = await this.query<T[]>()
-    return results
+    let results = await this.query<any[]>()
+    let rows: Row<any>[] = []
+    results.forEach(result => rows.push(new Row(result)))
+    return new DataSet(rows)
   }
 
-  public async first<T>(): Promise<T> {
+  public async first<T extends ModelItems>(): Promise<Row<T>> {
     this.queryType = queryType.select
     let currentLimit = this._limit
     this.limit(1)
     let results = await this.query<T[]>()
     this.limit(currentLimit)
     if (results && results[0]) {
-      return results[0]
+      return new Row(results[0])
     }
-    return {} as T
+    return new Row
   }
 
   public async value<T>(column: string): Promise<T> {

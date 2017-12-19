@@ -2,6 +2,8 @@ import { Builder } from "./Builder";
 import { Model } from "./Model";
 import { direction } from "./BuilderBase";
 import { Raw } from "./QueryConstructs";
+import DataSet from "./DataSet";
+import { Row } from "./Row";
 
 export interface ModelSettings {
   table: string
@@ -19,7 +21,7 @@ export interface ModelItems {
 
 export class ModelBase<I extends ModelItems> extends Builder {
 
-  protected _items: I = <I>{}
+  protected _items: DataSet<I>
 
   protected _settings: ModelSettings
   protected _dirty: boolean = false
@@ -28,11 +30,7 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   public get new(): boolean { return this._new }
   public get itemCount(): number { return Object.keys(this._items).length }
-  public get attributes(): I { return this._items }
-
-  public item(key: string, defaultValue: any = '') {
-    return this._items[key] || defaultValue
-  }
+  // public get attributes(): I { return this._items }
 
   public isPrimary(column: string): boolean {
     return (this._settings.primaryKey || false) && this._settings.primaryKey.indexOf(column) > -1
@@ -173,11 +171,11 @@ export class ModelBase<I extends ModelItems> extends Builder {
     return await this.create().chunk(records, callback)
   }
 
-  public static async first<T extends Model<any>>() {
+  public static async first<T extends ModelItems>(): Promise<DataSet<T>> {
     return await this.create().first<T>()
   }
 
-  public static async all<T extends Model<any>>() {
+  public static async all<T extends ModelItems>(): Promise<DataSet<T>> {
     return await this.create().get<T>()
   }
 }

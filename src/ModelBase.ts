@@ -29,7 +29,7 @@ export class ModelBase<I extends ModelItems> extends Builder {
   protected _customModel: boolean = false
 
   public get new(): boolean { return this._new }
-  public get itemCount(): number { return Object.keys(this._items).length }
+  public get length(): number { return this._items.length }
   // public get attributes(): I { return this._items }
 
   public isPrimary(column: string): boolean {

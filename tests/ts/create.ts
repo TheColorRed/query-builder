@@ -22,6 +22,13 @@ initdb({
 // purchases.create<purchases, Purchase>().awesome();
 
 (async () => {
+
+  let p = await purchases.firstOrNew<purchases, Purchase>({ id: 1000 })
+  p.forEach(row => {
+    console.log(row.id)
+  })
+  // await p.set('amount', 100).save()
+  db.disconnect()
   // try {
   //   // await purchases.create<purchases, Purchase>({ amount: Math.round(Math.random() * 1000) }).save()
   //   // console.log(await purchases.all())
@@ -30,12 +37,12 @@ initdb({
   //   console.log(e.message)
   // }
 
-  let p = await purchases.firstOrCreate<purchases, Purchase>({ id: 100 }, {
-    amount: 123
-  })
+  // let p = await purchases.firstOrCreate<purchases, Purchase>({ id: 100 }, {
+  //   amount: 123
+  // })
 
-  console.log(p.item('amount'))
-  db.disconnect()
+  // console.log(p.item('amount'))
+  // db.disconnect()
 
   // db.disconnect()
   // describe('Saving Records', () => {

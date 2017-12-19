@@ -31,16 +31,16 @@ export class Builder extends BuilderBase {
     return results
   }
 
-  public async update(update?: ModelItems): Promise<packetCallback | null> {
+  public async update(items?: ModelItems): Promise<packetCallback | null> {
     this.queryType = queryType.update
-    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
-    if (update) {
-      for (let key in update) {
-        this.setValue(key, update[key])
+    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0 && this.opt.between.length == 0)
+      throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
+    if (items) {
+      for (let key in items) {
+        this.setValue(key, items[key])
       }
     }
-    let results = await this.query<packetCallback>()
-    return results
+    return await this.query<packetCallback>()
   }
 
   public async delete() {
@@ -53,7 +53,7 @@ export class Builder extends BuilderBase {
   }
 
   // public async get<I extends ModelItems>(): Promise<DataSet<I>> {
-  public async get(): Promise<DataSet<any>> {
+  public async get(): Promise<DataSet<any> | this> {
     this.queryType = queryType.select
     let results = await this.query<any[]>()
     let rows: Row<any>[] = []
@@ -61,16 +61,16 @@ export class Builder extends BuilderBase {
     return new DataSet(rows)
   }
 
-  public async first<T extends ModelItems>(): Promise<Row<T>> {
+  public async first(): Promise<DataSet<any> | this> {
     this.queryType = queryType.select
     let currentLimit = this._limit
     this.limit(1)
-    let results = await this.query<T[]>()
+    let results = await this.query<any[]>()
     this.limit(currentLimit)
     if (results && results[0]) {
-      return new Row(results[0])
+      return new DataSet<any>(new Row(results[0]))
     }
-    return new Row
+    return new DataSet<any>()
   }
 
   public async value<T>(column: string): Promise<T> {

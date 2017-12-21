@@ -19,7 +19,7 @@ query_builder_1.initdb({
 (async () => {
     let p = await purchases_1.default.firstOrNew({ id: 1000 });
     p.forEach(row => {
-        console.log(row.id);
+        console.log(row);
     });
     // await p.set('amount', 100).save()
     query_builder_1.db.disconnect();

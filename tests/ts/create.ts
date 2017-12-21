@@ -25,7 +25,7 @@ initdb({
 
   let p = await purchases.firstOrNew<purchases, Purchase>({ id: 1000 })
   p.forEach(row => {
-    console.log(row.id)
+    console.log(row)
   })
   // await p.set('amount', 100).save()
   db.disconnect()

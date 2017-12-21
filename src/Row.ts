@@ -1,5 +1,9 @@
 import { ModelItems } from "./ModelBase";
 
+// export type Row<T extends ModelItems> = {
+//   [key: string]: T
+// }// & {[P in T]}
+
 export class Row<T extends ModelItems> {
 
   private _row: T = <T>{}

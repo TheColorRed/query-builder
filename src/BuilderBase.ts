@@ -24,7 +24,7 @@ export class BuilderBase extends QueryBuilder {
 
   public queryType: queryType = queryType.select
 
-  protected _conn: Connection
+  protected _conn: Connection | undefined
   protected _table: string = ''
   protected _distinct: boolean = false
   protected _placeholders: any[] = []
@@ -189,8 +189,9 @@ export class BuilderBase extends QueryBuilder {
     if (args[0] instanceof Raw) {
       this.opt.where.push(args[0] as Raw)
     } else if (args[0] instanceof Object) {
+      let arg: { [key: string]: any } = args[0] as Object
       for (let key in <any>args[0]) {
-        this.opt.where.push(new Where(key, (<any>args[0])[key]))
+        this.opt.where.push(new Where(key, arg[key]))
       }
     } else if (args.length == 2) {
       this.opt.where.push(new Where(<string>args[0], <any>args[1]))
@@ -211,8 +212,9 @@ export class BuilderBase extends QueryBuilder {
     if (args[0] instanceof Raw) {
       this.opt.havingWhere.push(args[0] as Raw)
     } else if (args[0] instanceof Object) {
+      let arg: { [key: string]: any } = args[0] as Object
       for (let key in <any>args[0]) {
-        this.opt.havingWhere.push(new Where(key, (<any>args[0])[key]))
+        this.opt.havingWhere.push(new Where(key, arg[key]))
       }
     } else if (args.length == 2) {
       this.opt.havingWhere.push(new Where(<string>args[0], <any>args[1]))
@@ -233,8 +235,9 @@ export class BuilderBase extends QueryBuilder {
     if (args[0] instanceof Raw) {
       this.opt.where.push(args[0] as Raw)
     } else if (args[0] instanceof Object) {
+      let arg: { [key: string]: any } = args[0] as Object
       for (let key in <any>args[0]) {
-        this.opt.where.push(new Where(key, (<any>args[0])[key], '=', condition.or))
+        this.opt.where.push(new Where(key, arg[key], '=', condition.or))
       }
     } else if (args.length == 2) {
       this.opt.where.push(new Where(<string>args[0], <any>args[1], '=', condition.or))

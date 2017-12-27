@@ -1,16 +1,10 @@
 import { ModelItems } from "./ModelBase";
 
-// export type Row<T extends ModelItems> = {
-//   [key: string]: T
-// }// & {[P in T]}
+export type Row<I extends ModelItems> = _Row<I> & I
 
-export interface Row<T extends ModelItems> {
-  [key: string]: T
-}
+export class _Row<I extends ModelItems> {
 
-export class Row<T extends ModelItems> {
-
-  private _row: T = <T>{}
+  private _row: I = <I>{}
   private _dirty: boolean = false
   private _newRow: boolean = true
 
@@ -26,9 +20,9 @@ export class Row<T extends ModelItems> {
     this._newRow = true
   }
 
-  public constructor(rowItems?: T) {
+  public constructor(rowItems?: I) {
     if (rowItems) {
-      this._row = rowItems
+      this._row = JSON.parse(JSON.stringify(rowItems))
     }
     return new Proxy(this, {
       get: function (target, prop) {
@@ -45,4 +39,11 @@ export class Row<T extends ModelItems> {
     })
   }
 
+}
+
+// export const Row = _Row as (new <T extends ModelItems>(rowItems?: T) => Row<T>)
+
+export const Row = _Row as {
+  new <I>(rowItems?: I): Row<I>
+  prototype: _Row<{}>
 }

@@ -33,6 +33,7 @@
   "devDependencies": {
     "@types/mocha": "^2.2.44",
     "@types/mysql": "^2.15.2",
-    "dotenv": "^4.0.0"
+    "dotenv": "^4.0.0",
+    "typescript": "^2.7.0-dev.20171223"
   }
 }

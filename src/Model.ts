@@ -1,13 +1,18 @@
-import { raw } from "./QueryConstructs";
-import { ModelBase, ModelItems, ModelSettings } from "./ModelBase";
-import DataSet from "./DataSet";
-import { Row } from "./Row";
+import { raw } from './QueryConstructs';
+import { ModelBase, ModelItems, ModelSettings } from './ModelBase';
+import { Row } from './Row';
 
-export interface ModelType<T> extends Model<T> {
-  new(): T
+// export interface ModelType<T> extends Model<T> {
+//   new(): T
+// }
+
+export interface Model<I extends ModelItems> {
+  [key: string]: any
 }
 
-export class Model<I extends ModelItems> extends ModelBase<I> {
+export class Model<I extends ModelItems> extends ModelBase<I> implements IterableIterator<I> {
+
+  protected pointer = 0
 
   public constructor(options?: ModelSettings) {
     super(options)
@@ -21,26 +26,69 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
       fillable: []
     }, options)
     this._table = this._settings.table
+
+    return new Proxy(this, {
+      get: (target, prop) => {
+        if (!Array.isArray(target._items) && target._items instanceof Row) {
+          if (prop in target._items.row) {
+            return target._items.row[prop]
+          }
+        }
+        if (Array.isArray(target._items) && target._items[0] instanceof Row) {
+          if (prop in target._items[0].row) {
+            return target._items[0].row[prop]
+          }
+        }
+        return target[prop]
+      }
+    })
+  }
+
+  public next(): IteratorResult<I> {
+    if (Array.isArray(this._items)) {
+      if (this.pointer < this._items.length) {
+        return { done: false, value: this._items[this.pointer++] }
+      } else {
+        this.pointer = 0
+        return { done: true, value: undefined } as any as IteratorResult<I>
+      }
+    } else {
+      return { done: true, value: this._items && this._items[0] } as any as IteratorResult<I>
+    }
+  }
+
+  [Symbol.iterator](): IterableIterator<I> {
+    return this
   }
 
   public async get() {
-    let i = await super.get()
-    if (i instanceof DataSet) {
+    let i = await super.get<I>()
+    if (Array.isArray(i)) {
       this._items = i
     }
     return this
   }
 
   public async first() {
-    let i = await super.first()
-    if (i instanceof DataSet) {
+    let i = await super.first<I>()
+    if (i instanceof Row) {
+      this._items = i
+    }
+    return this
+  }
+
+  public async firstOrFail() {
+    let i = await super.firstOrFail<I>()
+    if (Array.isArray(i)) {
+      this._items = i[0]
+    } else if (i instanceof Row) {
       this._items = i
     }
     return this
   }
 
   public forEach(callback: (row: Row<I>, index: number) => void) {
-    this._items.forEach(callback)
+    Array.isArray(this._items) && this._items.forEach(callback)
   }
 
   // public static async all<T extends Model<I>, I extends ModelItems>() {
@@ -51,9 +99,9 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
   public set(key: string, value: any): this
   public set(...args: any[]): this {
     if (!this._items) {
-      this._items = new DataSet(new Row)
+      this._items = new Row<I>()
     }
-    this._items.forEach((item, idx) => {
+    Array.isArray(this._items) && this._items.forEach((item) => {
       if (args.length == 1 && args[0] instanceof Object) {
         for (let key in args[0]) {
           let current = item.row[key]
@@ -65,23 +113,24 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
         item.row[args[0]] = args[1]
         if (current != item.row[args[0]]) { item.dirty() }
       }
-      this._items.set(idx, item)
+      // this._items && this._items.set(idx, item)
     })
     return this
   }
 
   public async save() {
     let updates: Promise<any>[] = []
-    this._items.forEach(async item => {
+    Array.isArray(this._items) && this._items.forEach(async item => {
       if (!item.isDirty) return false
+      if (!this._settings) return false
       if (Array.isArray(this._settings.primaryKey) && this._settings.primaryKey.length > 0) {
         let builder = ModelBase.create().table(this._settings.table)
         for (let key in item.row) {
           if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
-            builder.setValue(key, item.row[key])
+            builder.setValue(key, (<any>item.row)[key])
           }
         }
-        for (let key of this._settings.primaryKey) { builder.where(key, item.row[key]) }
+        for (let key of this._settings.primaryKey) { builder.where(key, (<any>item.row)[key]) }
         let u = builder.update()
         updates.push(u)
         u.then(() => { item['_dirty'] = false })
@@ -127,8 +176,10 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
   }
 
   public async delete() {
-    for (let key in this._items) {
-      this.where(key, this._items[key])
+    if (this._items) {
+      for (let key in this._items) {
+        this.where(key, (<any>this._items)[key])
+      }
     }
     return await super.delete()
   }
@@ -151,6 +202,7 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
   public static async find<T extends Model<I>, I extends ModelItems>(value: any): Promise<T>
   public static async find<T extends Model<I>, I extends ModelItems>(...args: any[]): Promise<T> {
     let t = this.create<T, I>()
+    if (!t._settings) return t
     if (t._settings.primaryKey && t._settings.primaryKey.length > 0) {
       let primaryKeys = t._settings.primaryKey
       if (args.length == 1 && args[0] instanceof Object) {
@@ -196,7 +248,7 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     for (let key in options) { t.where(key, options[key]) }
     await t.first()
     if (t.length == 0) {
-      t = this.create(Object.assign(options, newOptions))
+      t = this.create<T, I>(Object.assign(options, newOptions))
     }
 
     return t
@@ -208,15 +260,15 @@ export class Model<I extends ModelItems> extends ModelBase<I> {
     await t.first()
 
     if (t.length == 0) {
-      t = this.create(Object.assign(options, newOptions))
+      t = this.create<T, I>(Object.assign(options, newOptions))
       await t.save()
     }
 
     return t
   }
 
-  public static toString() {
-    return this.create().toString()
+  public static toString<T extends Model<I>, I extends ModelItems>(): string {
+    return this.create<T, I>().toString()
   }
 
 }

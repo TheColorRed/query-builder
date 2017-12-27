@@ -1,12 +1,9 @@
 import { Connection, packetCallback } from 'mysql'
-import { QueryBuilder } from './QueryBuilder'
-import { DB } from './DB';
 import { BuilderBase, queryType } from './BuilderBase';
 import { ModelSettings, ModelItems } from './ModelBase';
-import DataSet from './DataSet';
+import { QueryBuilder } from './QueryBuilder';
 import { Row } from './Row';
-
-export class QueryResult { }
+import { DB } from './DB';
 
 export class Builder extends BuilderBase {
 
@@ -52,25 +49,25 @@ export class Builder extends BuilderBase {
     return results
   }
 
-  // public async get<I extends ModelItems>(): Promise<DataSet<I>> {
-  public async get(): Promise<DataSet<any> | this> {
+  public async get<I extends ModelItems>(): Promise<Row<I>[] | this> {
     this.queryType = queryType.select
-    let results = await this.query<any[]>()
-    let rows: Row<any>[] = []
-    results.forEach(result => rows.push(new Row(result)))
-    return new DataSet(rows)
+    let results = await this.query<I[]>()
+    let rows: Row<I>[] = []
+    results.forEach((result: any) => rows.push(new Row(result)))
+    return rows
   }
 
-  public async first(): Promise<DataSet<any> | this> {
+  public async first<I extends ModelItems>(): Promise<Row<I> | this> {
     this.queryType = queryType.select
     let currentLimit = this._limit
     this.limit(1)
     let results = await this.query<any[]>()
     this.limit(currentLimit)
     if (results && results[0]) {
-      return new DataSet<any>(new Row(results[0]))
+      // console.log(results[0])
+      return new Row<I>(results[0])
     }
-    return new DataSet<any>()
+    return new Row<I>()
   }
 
   public async value<T>(column: string): Promise<T> {
@@ -90,8 +87,11 @@ export class Builder extends BuilderBase {
     this.select(column)
     let result = await this.get()
     this.opt.select = currentSelect
-    if (result) {
-      return result.reduce<any[]>((arr, val: any) => arr.concat(val[column]), [])
+    if (Array.isArray(result)) {
+      let values: any[] = []
+      result.forEach((item: { [key: string]: any }) => values.push(item[column]))
+      return values
+      // return result.reduce<any[]>((arr, val: any) => arr.concat(val[column]), [])
     }
     return []
   }
@@ -120,16 +120,17 @@ export class Builder extends BuilderBase {
     return (await this.first() as any)['total']
   }
 
-  public async firstOrFail<T>(): Promise<T> {
-    let first = await this.first() as T
-    if (Object.keys(first).length == 0) {
+  public async firstOrFail<I extends ModelItems>(): Promise<Row<I> | this> {
+    let first = await this.first<I>()
+    if ('length' in first && first.length == 0) {
       throw new Error('Record was not found')
     }
-    return first as T
+    return first
   }
 
   private async query<T>() {
     try {
+      // console.log(this)
       return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
     } catch (e) {
       throw e

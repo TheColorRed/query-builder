@@ -7,7 +7,6 @@
     "outDir": "lib",
     "declaration": true,
     "declarationDir": "typings",
-    "moduleResolution": "node",
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },

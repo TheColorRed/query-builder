@@ -67,6 +67,15 @@ initdb({
 * `default`: This is the default connection and there should only be one, otherwise you might get unexpected results. If you have only one connection than this option is optional.
 * `connection`: This is a list of connection options. For a full list of connection options see: [Connection Options](https://www.npmjs.com/package/mysql#connection-options) in the mysql package.
 
+### Connection Options
+
+* `default: boolean = undefined` This determines if this is the default connection to connect to. This is optional if there is only one connection. If there is more than one connection this value should be set otherwise unexpected connections may be selected.
+* `safeAlter: boolean = true` This determines if the the query builder should allow for mass updates/deletes with or without a `where` clause. By default this is set to true, so all update/delete queries must have a `where` clause if using the query builder. Raw queries are not affected (those using `db.update` and `db.delete`)
+* `dumpQueries: boolean = false` This determines if the queries for that connection should be dumped to the console or not. This is helpful for debugging queries and will output an object containing the query string, placeholder value array and the connection that was used to make the query.
+* `saveNonDirtyRows: boolean = false` This determines if updates should update non-dirty rows. By default dirty rows are not updated in the database.
+* `connection: Settings` This the database connection object. See [Connection Options](https://www.npmjs.com/package/mysql#connection-options) for more information.
+
+
 To connect to a specific connection you can call the `connection()` method from `db`
 
 ```js
@@ -206,7 +215,8 @@ module.exports = class users extends model {
     super({
       table: 'users',
       primaryKey: ['id'],
-      fillable: ['username', 'password', 'email']
+      fillable: ['username', 'password', 'email'],
+      hidden: ['password']
     });
   }
 }
@@ -215,6 +225,7 @@ module.exports = class users extends model {
 * `table`: this is the table that this model relates to
 * `primaryKey`: this is the primary key of the table, which is an array of column names
 * `fillable`: this is an array of columns that can be filled when inserted or updated. Anything not in this list will be ignored.
+* `hidden`: this is a list of fields that will be removed when running `.toArray()` or `.toJson()`. This is handy for api calls to hide private database data.
 
 Next we can use this model the following way
 

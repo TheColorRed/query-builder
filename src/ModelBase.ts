@@ -2,11 +2,11 @@ import { Builder } from './Builder';
 import { Row } from './Row';
 import { Model } from './Model';
 import { Raw } from './QueryConstructs';
-import { direction } from './BuilderBase';
+import { sort } from './BuilderBase';
 
-export interface ModelSettings {
+export interface ModelOptions {
   table: string
-  connection?: string | undefined
+  connection?: string
   primaryKey?: string[]
   hidden?: string[]
   fillable?: string[],
@@ -22,7 +22,7 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   protected _items?: Row<I> | Row<I>[] | { [key: string]: any }
 
-  protected _settings?: ModelSettings
+  protected _settings?: ModelOptions
   protected _dirty: boolean = false
   protected _new: boolean = false
   protected _customModel: boolean = false
@@ -157,26 +157,44 @@ export class ModelBase<I extends ModelItems> extends Builder {
     return this.create<T, I>().betweenHaving(column, value1, value2)
   }
 
-  public static orderBy<T extends Model<I>, I extends ModelItems>(dir: direction): Model<any>
-  public static orderBy<T extends Model<I>, I extends ModelItems>(column: string, dir: direction): Model<any>
+  public static orderBy<T extends Model<I>, I extends ModelItems>(dir: sort): Model<any>
+  public static orderBy<T extends Model<I>, I extends ModelItems>(column: string, dir: sort): Model<any>
   public static orderBy<T extends Model<I>, I extends ModelItems>(...args: any[]): Model<any> {
     return this.create<T, I>().orderBy(...args) as T
   }
 
-  public static groupBy<T extends Model<I>, I extends ModelItems>(column: string, dir: direction = direction.asc) {
+  public static groupBy<T extends Model<I>, I extends ModelItems>(column: string, dir: sort = sort.asc) {
     return this.create<T, I>().groupBy(column, dir) as T
   }
 
-  public static join<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string) {
-    return this.create<T, I>().join(table, columnA, operator, columnB) as T
+  public static join<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, columnB: string): T
+  public static join<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string): T
+  public static join<T extends Model<I>, I extends ModelItems>(...args: string[]) {
+    if (args.length == 3) {
+      return this.create<T, I>().join(args[0], args[1], '=', args[2]) as T
+    } else if (args.length == 4) {
+      return this.create<T, I>().join(args[0], args[1], args[2], args[3]) as T
+    }
   }
 
-  public static leftJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string) {
-    return this.create<T, I>().leftJoin(table, columnA, operator, columnB) as T
+  public static leftJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, columnB: string): T
+  public static leftJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string): T
+  public static leftJoin<T extends Model<I>, I extends ModelItems>(...args: string[]) {
+    if (args.length == 3) {
+      return this.create<T, I>().leftJoin(args[0], args[1], '=', args[2]) as T
+    } else if (args.length == 4) {
+      return this.create<T, I>().leftJoin(args[0], args[1], args[2], args[3]) as T
+    }
   }
 
-  public static rightJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string) {
-    return this.create<T, I>().rightJoin(table, columnA, operator, columnB) as T
+  public static rightJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, columnB: string): T
+  public static rightJoin<T extends Model<I>, I extends ModelItems>(table: string, columnA: string, operator: string, columnB: string): T
+  public static rightJoin<T extends Model<I>, I extends ModelItems>(...args: string[]) {
+    if (args.length == 3) {
+      return this.create<T, I>().rightJoin(args[0], args[1], '=', args[2]) as T
+    } else if (args.length == 4) {
+      return this.create<T, I>().rightJoin(args[0], args[1], args[2], args[3]) as T
+    }
   }
 
   public static table<T extends Model<I>, I extends ModelItems>(table: string) {
@@ -189,6 +207,14 @@ export class ModelBase<I extends ModelItems> extends Builder {
 
   public static addSelect<T extends Model<I>, I extends ModelItems>(...args: (string | Raw)[]) {
     return this.create<T, I>().addSelect(...args) as T
+  }
+
+  public static limit<T extends Model<I>, I extends ModelItems>(limit: number, offset: number = 0) {
+    return this.create<T, I>().limit(limit, offset)
+  }
+
+  public static offset<T extends Model<I>, I extends ModelItems>(offset: number) {
+    return this.create<T, I>().offset(offset)
   }
 
   public static async chunk<T extends Model<I>, I extends ModelItems>(records: number, callback: (rows: T[]) => void) {

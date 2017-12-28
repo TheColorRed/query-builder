@@ -3,9 +3,8 @@ import { Connection } from 'mysql'
 
 export { Model as model } from './Model'
 export { DB as db } from './DB'
-export { direction, queryType } from './BuilderBase'
+export { sort } from './BuilderBase'
 export { raw } from './QueryConstructs'
-// export { QueryBuilder } from './QueryBuilder'
 
 export function escape(value: any): any {
   return DB.getDefaultConnection().conn.escape(value)

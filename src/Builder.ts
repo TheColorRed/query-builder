@@ -1,22 +1,24 @@
-import { Connection, packetCallback } from 'mysql'
+import { packetCallback } from 'mysql'
 import { BuilderBase, queryType } from './BuilderBase';
-import { ModelSettings, ModelItems } from './ModelBase';
+import { ModelOptions, ModelItems } from './ModelBase';
 import { QueryBuilder } from './QueryBuilder';
 import { Row } from './Row';
-import { DB } from './DB';
+import { DB, Connection } from './DB';
 
 export class Builder extends BuilderBase {
 
-  public constructor(connection?: Connection | ModelSettings) {
+  public constructor(connection?: Connection | ModelOptions) {
     super()
     if (connection && 'connection' in connection && (<any>connection).connection.length > 0) {
-      this._conn = DB.getConnection((<ModelSettings>connection).connection || '').conn
+      this._conn = DB.getConnection((<ModelOptions>connection).connection || '')
     } else if (connection && 'threadId' in connection) {
       this._conn = connection as Connection
     } else {
-      let conn = DB.connections.find(c => c.config.default === true)
+      let conn = DB.connections.find(c => c.config && c.config.default === true)
       if (conn) {
-        this._conn = conn.conn
+        this._conn = conn
+      } else {
+        this._conn = DB.connections[0]
       }
     }
   }
@@ -30,8 +32,8 @@ export class Builder extends BuilderBase {
 
   public async update(items?: ModelItems): Promise<packetCallback | null> {
     this.queryType = queryType.update
-    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0 && this.opt.between.length == 0)
-      throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
+    if (this._conn.config.safeAlter && this.opt.where.length == 0 && this.opt.between.length == 0)
+      throw new Error(`A where clause is required${this._conn ? ` when using connection "${this._conn.name}"` : ''}. Set "safeAlter = false" in the initdb to disable.`)
     if (items) {
       for (let key in items) {
         this.setValue(key, items[key])
@@ -42,8 +44,8 @@ export class Builder extends BuilderBase {
 
   public async delete() {
     this.queryType = queryType.delete
-    if (QueryBuilder.tableSafeAlterMode && this.opt.where.length == 0) {
-      throw new Error('A where clause is required. Set "QueryBuilder.tableSafeAlterMode = false" to disable.')
+    if (this._conn.config.safeAlter && this.opt.where.length == 0) {
+      throw new Error(`A where clause is required${this._conn ? ` when using connection "${this._conn.name}"` : ''}. Set "safeAlter = false" in the initdb to disable.`)
     }
     let results = await this.query<packetCallback>()
     return results
@@ -53,7 +55,7 @@ export class Builder extends BuilderBase {
     this.queryType = queryType.select
     let results = await this.query<I[]>()
     let rows: Row<I>[] = []
-    results.forEach((result: any) => rows.push(new Row(result)))
+    results.forEach((result: any) => rows.push(new Row(result, false)))
     return rows
   }
 
@@ -65,9 +67,9 @@ export class Builder extends BuilderBase {
     this.limit(currentLimit)
     if (results && results[0]) {
       // console.log(results[0])
-      return new Row<I>(results[0])
+      return new Row<I>(results[0], false)
     }
-    return new Row<I>()
+    return new Row<I>(undefined, false)
   }
 
   public async value<T>(column: string): Promise<T> {
@@ -130,7 +132,6 @@ export class Builder extends BuilderBase {
 
   private async query<T>() {
     try {
-      // console.log(this)
       return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
     } catch (e) {
       throw e

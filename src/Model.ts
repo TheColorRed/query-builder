@@ -1,5 +1,5 @@
 import { raw } from './QueryConstructs';
-import { ModelBase, ModelItems, ModelSettings } from './ModelBase';
+import { ModelBase, ModelItems, ModelOptions } from './ModelBase';
 import { Row } from './Row';
 
 // export interface ModelType<T> extends Model<T> {
@@ -14,11 +14,11 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
 
   protected pointer = 0
 
-  public constructor(options?: ModelSettings) {
+  public constructor(options?: ModelOptions) {
     super(options)
     this._customModel = true
     if (options && options.primaryKey && typeof options.primaryKey == 'string') { options.primaryKey = [options.primaryKey] }
-    this._settings = Object.assign(<ModelSettings>{
+    this._settings = Object.assign(<ModelOptions>{
       table: '',
       connection: '',
       hidden: [],
@@ -88,7 +88,11 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
   }
 
   public forEach(callback: (row: Row<I>, index: number) => void) {
-    Array.isArray(this._items) && this._items.forEach(callback)
+    if (Array.isArray(this._items)) {
+      for (let [index, row] of this._items.entries()) {
+        callback(row, index)
+      }
+    }
   }
 
   // public static async all<T extends Model<I>, I extends ModelItems>() {
@@ -119,24 +123,41 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
   }
 
   public async save() {
-    let updates: Promise<any>[] = []
+    let saves: Promise<any>[] = []
     Array.isArray(this._items) && this._items.forEach(async item => {
-      if (!item.isDirty) return false
       if (!this._settings) return false
-      if (Array.isArray(this._settings.primaryKey) && this._settings.primaryKey.length > 0) {
-        let builder = ModelBase.create().table(this._settings.table)
+      let settings = this._settings
+      if (!item.isDirty && (typeof this._conn.config.saveNonDirtyRows == 'undefined' || !this._conn.config.saveNonDirtyRows)) {
+        return false
+      }
+      if (item.isNewRow) {
+        // Saves a new item
+        let builder = ModelBase.create().table(settings.table)
         for (let key in item.row) {
-          if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
-            builder.setValue(key, (<any>item.row)[key])
+          if (settings.fillable && settings.fillable.indexOf(key) > -1) {
+            builder.setValue(key, item.row[key])
           }
         }
-        for (let key of this._settings.primaryKey) { builder.where(key, (<any>item.row)[key]) }
-        let u = builder.update()
-        updates.push(u)
-        u.then(() => { item['_dirty'] = false })
+        let i = builder.insert()
+        i.then(() => { item['_dirty'] = false; item['_newRow'] = false })
+        saves.push(i)
+      } else {
+        // Updates the current item
+        if (Array.isArray(settings.primaryKey) && settings.primaryKey.length > 0) {
+          let builder = ModelBase.create().table(settings.table)
+          for (let key in item.row) {
+            if (settings.fillable && settings.fillable.indexOf(key) > -1) {
+              builder.setValue(key, item.row[key])
+            }
+          }
+          for (let key of settings.primaryKey) { builder.where(key, item.row[key]) }
+          let u = builder.update()
+          u.then(() => { item['_dirty'] = false })
+          saves.push(u)
+        }
       }
     })
-    await Promise.all(updates)
+    await Promise.all(saves)
     return this
     // Creates an update
     // if (!this._new) {

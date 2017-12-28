@@ -5,6 +5,9 @@ import { QueryBuilder } from './QueryBuilder';
 
 export interface DatabaseConnection {
   default?: boolean
+  safeAlter?: boolean
+  dumpQueries?: boolean
+  saveNonDirtyRows?: boolean
   connection: {
     host: string
     user: string
@@ -97,7 +100,7 @@ export class DB {
     let conn = name ? this._connections.find(c => c.name == name) : this._connections.find(c => c.config.default === true)
     if (!conn) conn = this._connections[0]
     if (!conn) { throw new Error('No connection avalible') }
-    return new Builder(conn.conn)
+    return new Builder(conn)
   }
 
   public static table(tableName: string) {
@@ -107,14 +110,14 @@ export class DB {
   public static async select<T>(query: string, params?: any[]): Promise<T[] | null>
   public static async select<T>(conn: string, query: string, params: any[]): Promise<T[] | null>
   public static async select<T>(...args: any[]): Promise<T[] | null> {
-    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
+    let conn: Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = (<Connection>this.getConnection(args[0])).conn
+      conn = (<Connection>this.getConnection(args[0]))
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {
       let c = this._connections.find(c => c.config.default === true)
-      conn = c ? c.conn : null
+      conn = c ? c : null
       query = args[0]
       params = args[1]
     } else if (args.length == 1) {
@@ -129,14 +132,14 @@ export class DB {
   public static async insert(query: string, params?: any[]): Promise<packetCallback | null>
   public static async insert(conn: string, query: string, params?: any[]): Promise<packetCallback | null>
   public static async insert(...args: any[]): Promise<packetCallback | null> {
-    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
+    let conn: Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = (<Connection>this.getConnection(args[0])).conn
+      conn = (<Connection>this.getConnection(args[0]))
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {
       let c = this._connections.find(c => c.config.default === true)
-      conn = c ? c.conn : null
+      conn = c ? c : null
       query = args[0]
       params = args[1]
     } else if (args.length == 1) {
@@ -156,14 +159,14 @@ export class DB {
   public static async delete(query: string, params?: any[]): Promise<packetCallback | null>
   public static async delete(conn: string, query: string, params: any[]): Promise<packetCallback | null>
   public static async delete(...args: any[]): Promise<packetCallback | null> {
-    let conn: MysqlConnection | null = null, query: string = '', params: any[] = []
+    let conn: Connection | null = null, query: string = '', params: any[] = []
     if (args.length == 3) {
-      conn = (<Connection>this.getConnection(args[0])).conn
+      conn = (<Connection>this.getConnection(args[0]))
       query = args[1]
       params = args[2]
     } else if (args.length == 2) {
       let c = this._connections.find(c => c.config.default === true)
-      conn = c ? c.conn : null
+      conn = c ? c : null
       query = args[0]
       params = args[1]
     } else if (args.length == 1) {

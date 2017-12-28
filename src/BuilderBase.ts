@@ -1,8 +1,8 @@
-import { Connection } from 'mysql'
 import { QueryBuilder } from "./QueryBuilder";
 import { Select, Join, Where, Order, Set, Raw, Between } from "./QueryConstructs";
+import { Connection } from './DB';
 
-export enum direction { asc = 'asc', desc = 'desc', random = 'rand()' }
+export enum sort { asc = 'asc', desc = 'desc', random = 'rand()' }
 export enum joinType { join = 'join', leftJoin = 'left join', rightJoin = 'right join' }
 export enum condition { and = 'and', or = 'or' }
 export enum queryType { select, insert, update, delete }
@@ -24,7 +24,7 @@ export class BuilderBase extends QueryBuilder {
 
   public queryType: queryType = queryType.select
 
-  protected _conn: Connection | undefined
+  protected _conn: Connection
   protected _table: string = ''
   protected _distinct: boolean = false
   protected _placeholders: any[] = []
@@ -73,7 +73,12 @@ export class BuilderBase extends QueryBuilder {
       if (j instanceof Raw) {
         q.push(j.raw)
       } else {
-        q.push(`${j.joinType} ${j.table} on ${j.column.column} ${j.column.operator} ${j.column.value}`)
+        q.push(`${j.joinType} ${j.table} on`)
+        let joins: string[] = []
+        j.columns.forEach(c => {
+          joins.push(`${c.column} ${c.operator} ${c.value}`)
+        })
+        q.push(joins.join(' and '))
       }
     })
 
@@ -91,7 +96,7 @@ export class BuilderBase extends QueryBuilder {
           this._placeholders.push(set.value)
         }
       })
-      if (sets.length > 0) q = q.concat(sets.join(', '))
+      if (sets.length > 0) q = q.concat(sets.join(', ').trim())
     }
 
     // Create the where
@@ -118,14 +123,13 @@ export class BuilderBase extends QueryBuilder {
     })
     this.opt.between.forEach(between => {
       if (between instanceof Between) {
-        wheres.push(`${wheres.length > 0 ? between.condition : ''} ${between.column} between ? and ?`)
+        wheres.push(`${wheres.length > 0 ? between.condition : ''} ${between.column} ${between.not ? 'not' : ''} between ? and ?`)
         this._placeholders.push(between.value1, between.value2)
       } else {
         wheres.push(between.raw)
       }
     })
-    if (wheres.length > 0) q = q.concat(wheres.join(' '))
-    // if (wheres.length > 0) q = q.concat(wheres.join(' and '))
+    if (wheres.length > 0) q = q.concat(wheres.join(' ').trim())
     // Create the betweens
 
     // Create the group by
@@ -158,13 +162,13 @@ export class BuilderBase extends QueryBuilder {
     })
     this.opt.havingBetween.forEach(between => {
       if (between instanceof Between) {
-        having.push(`${having.length > 0 ? between.condition : ''} ${between.column} between ? and ?`)
+        having.push(`${having.length > 0 ? between.condition : ''} ${between.column} ${between.not ? 'not' : ''} between ? and ?`)
         this._placeholders.push(between.value1, between.value2)
       } else {
         having.push(between.raw)
       }
     })
-    if (having.length > 0) q = q.concat(having.join(' '))
+    if (having.length > 0) q = q.concat(having.join(' ').trim())
     // Create the order by
     this.opt.order.length > 0 && q.push(
       'order by',
@@ -185,6 +189,7 @@ export class BuilderBase extends QueryBuilder {
   public where(column: string, value: string | number): this
   public where(column: string, value: any[]): this
   public where(column: string, operator: string, value: string | number): this
+  public where(column: string, join: (join: Join) => void): this
   public where(...args: (string | number | Raw | Object)[]): this {
     if (args[0] instanceof Raw) {
       this.opt.where.push(args[0] as Raw)
@@ -249,23 +254,24 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
-  public whereNull(column: string) {
-    this.opt.where.push(new Where(column, null, 'is null'))
+  public whereNull(...columns: string[]) {
+    columns.forEach(column => this.opt.where.push(new Where(column, null, 'is null')))
+
     return this
   }
 
-  public whereNotNull(column: string) {
-    this.opt.where.push(new Where(column, null, 'is not null'))
+  public whereNotNull(...columns: string[]) {
+    columns.forEach(column => this.opt.where.push(new Where(column, null, 'is not null')))
     return this
   }
 
-  public between(column: string, value1: any, value2: any) {
-    this.opt.between.push(new Between(column, value1, value2))
+  public between(column: string, value1: any, value2: any, cond: condition = condition.and) {
+    this.opt.between.push(new Between(column, value1, value2, cond))
     return this
   }
 
-  public orBetween(column: string, value1: any, value2: any) {
-    this.opt.between.push(new Between(column, value1, value2))
+  public notBetween(column: string, value1: any, value2: any, cond: condition = condition.and) {
+    this.opt.between.push(new Between(column, value1, value2, cond, true))
     return this
   }
 
@@ -274,8 +280,8 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
-  public orderBy(dir: direction): this
-  public orderBy(column: string, dir: direction): this
+  public orderBy(dir: sort): this
+  public orderBy(column: string, dir: sort): this
   public orderBy(...args: any[]): this {
     if (args.length == 1) {
       this.opt.order.push(new Order('', args[0]))
@@ -285,23 +291,50 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
-  public groupBy(column: string, dir: direction = direction.asc): this {
+  public groupBy(column: string, dir: sort = sort.asc): this {
     this.opt.group.push(new Order(column, dir))
     return this
   }
 
-  public join(table: string, columnA: string, operator: string, columnB: string) {
-    this.opt.join.push(new Join(joinType.join, table, columnA, operator, columnB))
+  public join(table: string, callback: (join: Join) => void): this
+  public join(table: string, columnA: string, columnB: string): this
+  public join(table: string, columnA: string, operator: string, columnB: string): this
+  public join(...args: (string | Function)[]) {
+    if (args.length == 2) {
+      this.opt.join.push(new Join(joinType.join, <string>args[0], <(join: Join) => void>args[1]))
+    } else if (args.length == 3) {
+      this.opt.join.push(new Join(joinType.join, <string>args[0], <string>args[1], '=', <string>args[2]))
+    } else if (args.length == 4) {
+      this.opt.join.push(new Join(joinType.join, <string>args[0], <string>args[1], <string>args[2], <string>args[3]))
+    }
     return this
   }
 
-  public leftJoin(table: string, columnA: string, operator: string, columnB: string) {
-    this.opt.join.push(new Join(joinType.leftJoin, table, columnA, operator, columnB))
+  public leftJoin(table: string, callback: (join: Join) => void): this
+  public leftJoin(table: string, columnA: string, columnB: string): this
+  public leftJoin(table: string, columnA: string, operator: string, columnB: string): this
+  public leftJoin(...args: (string | Function)[]) {
+    if (args.length == 2) {
+      this.opt.join.push(new Join(joinType.leftJoin, <string>args[0], <(join: Join) => void>args[1]))
+    } else if (args.length == 3) {
+      this.opt.join.push(new Join(joinType.leftJoin, <string>args[0], <string>args[1], '=', <string>args[2]))
+    } else if (args.length == 4) {
+      this.opt.join.push(new Join(joinType.leftJoin, <string>args[0], <string>args[1], <string>args[2], <string>args[3]))
+    }
     return this
   }
 
-  public rightJoin(table: string, columnA: string, operator: string, columnB: string) {
-    this.opt.join.push(new Join(joinType.rightJoin, table, columnA, operator, columnB))
+  public rightJoin(table: string, callback: (join: Join) => void): this
+  public rightJoin(table: string, columnA: string, columnB: string): this
+  public rightJoin(table: string, columnA: string, operator: string, columnB: string): this
+  public rightJoin(...args: (string | Function)[]) {
+    if (args.length == 2) {
+      this.opt.join.push(new Join(joinType.rightJoin, <string>args[0], <(join: Join) => void>args[1]))
+    } else if (args.length == 3) {
+      this.opt.join.push(new Join(joinType.rightJoin, <string>args[0], <string>args[1], '=', <string>args[2]))
+    } else if (args.length == 4) {
+      this.opt.join.push(new Join(joinType.rightJoin, <string>args[0], <string>args[1], <string>args[2], <string>args[3]))
+    }
     return this
   }
 
@@ -336,8 +369,15 @@ export class BuilderBase extends QueryBuilder {
     return this
   }
 
-  public limit(limit: number, offset: number = 0): this {
+  public limit(limit: number, offset?: number): this {
     this._limit = limit
+    if (offset) {
+      this._offset = offset
+    }
+    return this
+  }
+
+  public offset(offset: number) {
     this._offset = offset
     return this
   }

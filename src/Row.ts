@@ -20,17 +20,22 @@ export class _Row<I extends ModelItems> {
     this._newRow = true
   }
 
-  public constructor(rowItems?: I) {
+  public constructor(rowItems?: I, isNew: boolean = true) {
     if (rowItems) {
       this._row = JSON.parse(JSON.stringify(rowItems))
     }
+    this._newRow = isNew
     return new Proxy(this, {
       get: function (target, prop) {
         return (<any>target)[prop] || target._row[prop] || ''
       },
       set: function (target, prop, value) {
         if (['_row', '_dirty', '_newRow'].indexOf(prop.toString()) == -1) {
+          let curr = target._row[prop]
           target._row[prop] = value
+          if (curr != target._row[prop]) {
+            target._dirty = true
+          }
         } else {
           (<any>target)[prop] = value
         }
@@ -44,6 +49,6 @@ export class _Row<I extends ModelItems> {
 // export const Row = _Row as (new <T extends ModelItems>(rowItems?: T) => Row<T>)
 
 export const Row = _Row as {
-  new <I>(rowItems?: I): Row<I>
+  new <I>(rowItems?: I, isNew?: boolean): Row<I>
   prototype: _Row<{}>
 }

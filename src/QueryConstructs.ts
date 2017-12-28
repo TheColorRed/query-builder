@@ -1,4 +1,4 @@
-import { joinType, direction, condition } from "./BuilderBase";
+import { joinType, sort, condition } from "./BuilderBase";
 
 export function raw(data: string) {
   return new Raw(data)
@@ -34,12 +34,29 @@ export class Select {
 export class Join {
   public joinType: joinType = joinType.join
   public table: string = ''
-  public column: Where
+  public columns: Where[] = []
 
-  public constructor(type: joinType, table: string, columnA: string, operator: string, columnB: string) {
-    this.table = table
-    this.joinType = type
-    this.column = new Where(columnA, columnB, operator)
+  public constructor(type: joinType, table: string, callback: (join: Join) => void)
+  public constructor(type: joinType, table: string, columnA: string, operator: string, columnB: string)
+  public constructor(...args: any[]) {
+    this.joinType = args[0]
+    this.table = args[1]
+    if (args.length == 5) {
+      this.columns.push(new Where(args[2], args[4], args[3]))
+    } else if (args.length == 3 && typeof args[2] == 'function') {
+      args[2](this)
+    }
+  }
+
+  public on(columnA: string, columnB: string): this
+  public on(columnA: string, operator: string, columnB: string): this
+  public on(...args: string[]) {
+    if (args.length == 2) {
+      this.columns.push(new Where(args[0], args[1], '='))
+    } else {
+      this.columns.push(new Where(args[0], args[2], args[1]))
+    }
+    return this
   }
 
 }
@@ -63,12 +80,14 @@ export class Between {
   public value1: string | number | any[] | null | Raw = ''
   public value2: string | number | any[] | null | Raw = ''
   public condition: condition = condition.and
+  public not: boolean = false
 
-  public constructor(column: string, value1: string | number | any[] | null | Raw, value2: string | number | any[] | null | Raw, cond: condition = condition.and) {
+  public constructor(column: string, value1: string | number | any[] | null | Raw, value2: string | number | any[] | null | Raw, cond: condition = condition.and, not: boolean = false) {
     this.column = column
     this.value1 = value1
     this.value2 = value2
     this.condition = cond
+    this.not = not
   }
 }
 
@@ -81,9 +100,9 @@ export class Set extends Where {
 
 export class Order {
   public column: string = ''
-  public direction: direction = direction.asc
+  public direction: sort = sort.asc
 
-  public constructor(column: string, dir: direction = direction.asc) {
+  public constructor(column: string, dir: sort = sort.asc) {
     this.column = column
     this.direction = dir
   }

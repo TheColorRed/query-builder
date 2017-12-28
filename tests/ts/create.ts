@@ -3,30 +3,40 @@ import purchases, { Purchase } from './models/purchases'
 
 import * as assert from 'assert'
 
-initdb({
-  test: {
-    connection: {
-      host: 'localhost',
-      user: 'root',
-      password: '',
-      database: 'test'
-    }
-  }
-});
-
 // purchases.chunk(10, (rows) => {
 //   console.log(rows)
 // }).then(() => db.disconnect());
 
-
-// purchases.create<purchases, Purchase>().awesome();
-
 (async () => {
-
-  let p = await purchases.firstOrNew<purchases, Purchase>({ id: 1000 })
-  p.forEach(row => {
-    console.log(row)
+  initdb({
+    test: {
+      dumpQueries: true,
+      connection: {
+        host: 'localhost',
+        user: 'root',
+        password: '',
+        database: 'test'
+      }
+    }
   })
+
+  console.log(purchases.where('id', 4).rightJoin('test', (join) => {
+    join.on('a', 'b').on('c', 'd')
+  }).toString())
+
+  // let p = await purchases.where<purchases, Purchase>('id', '<', 10).get()
+  // p.forEach((r) => {
+  //   r.amount = 20
+  // })
+  // for (let i of p) {
+  //   i.amount = 10//Math.round(Math.random() * 100)
+  // }
+  // p.set({ amount: 100 })
+  // await p.save()
+  // let p = await purchases.firstOrNew<purchases, Purchase>({ id: 1000 })
+  // p.forEach(row => {
+  //   console.log(row)
+  // })
   // await p.set('amount', 100).save()
   db.disconnect()
   // try {

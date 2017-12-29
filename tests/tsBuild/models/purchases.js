@@ -9,12 +9,5 @@ class purchases extends query_builder_1.model {
             primaryKey: ['id']
         });
     }
-    static awesome() {
-        return this.create().awesome();
-    }
-    awesome() {
-        console.log('hi');
-        return this;
-    }
 }
 exports.default = purchases;

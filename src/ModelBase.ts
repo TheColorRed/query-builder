@@ -30,6 +30,7 @@ export class ModelBase<I extends ModelItems> extends Builder {
   public get new(): boolean { return this._new }
   public get length(): number { return Array.isArray(this._items) && this._items.length || this._items ? 1 : 0 }
   public get attributes(): I { return (Array.isArray(this._items) ? this._items[0] : this._items) as I }
+  public get settings(): ModelOptions { return this._settings as ModelOptions }
 
   public isPrimary(column: string): boolean {
     return (this._settings && this._settings.primaryKey || false) && this._settings.primaryKey.indexOf(column) > -1

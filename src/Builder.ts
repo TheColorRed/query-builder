@@ -24,15 +24,15 @@ export class Builder extends BuilderBase {
   }
 
   public async insert(): Promise<packetCallback | boolean> {
-    this.queryType = queryType.insert
-    if (this.opt.set.length == 0) return false
+    this._queryType = queryType.insert
+    if (this._opts.set.length == 0) return false
     let results = await this.query<packetCallback>()
     return results
   }
 
   public async update(items?: ModelItems): Promise<packetCallback | null> {
-    this.queryType = queryType.update
-    if (this._conn.config.safeAlter && this.opt.where.length == 0 && this.opt.between.length == 0)
+    this._queryType = queryType.update
+    if (this._conn.config.safeAlter && this._opts.where.length == 0 && this._opts.between.length == 0)
       throw new Error(`A where clause is required${this._conn ? ` when using connection "${this._conn.name}"` : ''}. Set "safeAlter = false" in the initdb to disable.`)
     if (items) {
       for (let key in items) {
@@ -43,8 +43,8 @@ export class Builder extends BuilderBase {
   }
 
   public async delete() {
-    this.queryType = queryType.delete
-    if (this._conn.config.safeAlter && this.opt.where.length == 0) {
+    this._queryType = queryType.delete
+    if (this._conn.config.safeAlter && this._opts.where.length == 0) {
       throw new Error(`A where clause is required${this._conn ? ` when using connection "${this._conn.name}"` : ''}. Set "safeAlter = false" in the initdb to disable.`)
     }
     let results = await this.query<packetCallback>()
@@ -52,7 +52,7 @@ export class Builder extends BuilderBase {
   }
 
   public async get<I extends ModelItems>(): Promise<Row<I>[] | this> {
-    this.queryType = queryType.select
+    this._queryType = queryType.select
     let results = await this.query<I[]>()
     let rows: Row<I>[] = []
     results.forEach((result: any) => rows.push(new Row(result, false)))
@@ -60,7 +60,7 @@ export class Builder extends BuilderBase {
   }
 
   public async first<I extends ModelItems>(): Promise<Row<I> | this> {
-    this.queryType = queryType.select
+    this._queryType = queryType.select
     let currentLimit = this._limit
     this.limit(1)
     let results = await this.query<any[]>()
@@ -73,22 +73,22 @@ export class Builder extends BuilderBase {
   }
 
   public async value<T>(column: string): Promise<T> {
-    this.queryType = queryType.select
-    let currentSelect = this.opt.select
-    this.opt.select = []
+    this._queryType = queryType.select
+    let currentSelect = this._opts.select
+    this._opts.select = []
     this.select(column)
     let first = await this.first() as any
-    this.opt.select = currentSelect
+    this._opts.select = currentSelect
     return first[column]
   }
 
   public async values(column: string) {
-    this.queryType = queryType.select
-    let currentSelect = this.opt.select
-    this.opt.select = []
+    this._queryType = queryType.select
+    let currentSelect = this._opts.select
+    this._opts.select = []
     this.select(column)
     let result = await this.get()
-    this.opt.select = currentSelect
+    this._opts.select = currentSelect
     if (Array.isArray(result)) {
       let values: any[] = []
       result.forEach((item: { [key: string]: any }) => values.push(item[column]))
@@ -99,7 +99,7 @@ export class Builder extends BuilderBase {
   }
 
   public async chunk<T>(records: number, callback: (rows: T[]) => void) {
-    this.queryType = queryType.select
+    this._queryType = queryType.select
     let offset = 0
     let results: T[] = []
     let totalResults = 0
@@ -116,8 +116,8 @@ export class Builder extends BuilderBase {
   }
 
   public async count(column: string = '*', distinct: boolean = false) {
-    this.queryType = queryType.select
-    this.opt.select = []
+    this._queryType = queryType.select
+    this._opts.select = []
     this.select(`count(${distinct ? 'distinct' : ''} ${column}) as total`)
     return (await this.first() as any)['total']
   }
@@ -132,7 +132,7 @@ export class Builder extends BuilderBase {
 
   private async query<T>() {
     try {
-      return await QueryBuilder.query<T>(this._conn, this.toString(), this._placeholders)
+      return await new QueryBuilder(this._queryType, this._table, this._opts, this._limit, this._offset, this._distinct).query<T>(this._conn)
     } catch (e) {
       throw e
     }

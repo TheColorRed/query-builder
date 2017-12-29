@@ -1,8 +1,8 @@
-import { model } from 'query-builder'
+import { model, type } from 'query-builder'
 
 export interface Purchase {
-  id?: number
-  amount?: number
+  id: type.int
+  amount: type.int
 }
 
 export default class purchases extends model<Purchase> {
@@ -13,15 +13,6 @@ export default class purchases extends model<Purchase> {
       fillable: ['amount'],
       primaryKey: ['id']
     })
-  }
-
-  public static awesome() {
-    return this.create<purchases, Purchase>().awesome()
-  }
-
-  public awesome() {
-    console.log('hi')
-    return this
   }
 
 }

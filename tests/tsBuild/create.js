@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const query_builder_1 = require("query-builder");
-const purchases_1 = require("./models/purchases");
+const users_1 = require("./models/users");
 // purchases.chunk(10, (rows) => {
 //   console.log(rows)
 // }).then(() => db.disconnect());
@@ -17,9 +17,10 @@ const purchases_1 = require("./models/purchases");
             }
         }
     });
-    console.log(purchases_1.default.where('id', 4).rightJoin('test', (join) => {
-        join.on('a', 'b').on('c', 'd');
-    }).toString());
+    console.log((await users_1.default.where('users.id', 1).purchases().get()).toArray());
+    // console.log(purchases.where('id', 4).join('test', (join) => {
+    //   join.on('a', 'b').where('a', [1, 212, 12, 3])
+    // }).toString())
     // let p = await purchases.where<purchases, Purchase>('id', '<', 10).get()
     // p.forEach((r) => {
     //   r.amount = 20

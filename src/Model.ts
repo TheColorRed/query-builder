@@ -10,6 +10,10 @@ export interface Model<I extends ModelItems> {
   [key: string]: any
 }
 
+export interface ModelCreator<T extends Model<T>> {
+  new(): T
+}
+
 export class Model<I extends ModelItems> extends ModelBase<I> implements IterableIterator<I> {
 
   protected pointer = 0
@@ -29,17 +33,19 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
 
     return new Proxy(this, {
       get: (target, prop) => {
+        let attr = prop.toString().replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); })
+        attr = attr.charAt(0).toUpperCase() + attr.slice(1)
         if (!Array.isArray(target._items) && target._items instanceof Row) {
           if (prop in target._items.row) {
-            return target._items.row[prop]
+            return target._items.row[prop.toString()]
           }
         }
         if (Array.isArray(target._items) && target._items[0] instanceof Row) {
           if (prop in target._items[0].row) {
-            return target._items[0].row[prop]
+            return target._items[0].row[prop.toString()]
           }
         }
-        return target[prop]
+        return target[prop.toString()]
       }
     })
   }
@@ -58,6 +64,28 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
   }
 
   [Symbol.iterator](): IterableIterator<I> {
+    return this
+  }
+
+  public hasOne<T extends Model<I>, I extends ModelItems>(model: ModelCreator<any>, foreignKey?: string, localKey?: string) {
+    let m = new model() as T
+    if (m.settings.table) {
+      localKey = localKey ? localKey : 'id'
+      foreignKey = foreignKey ? foreignKey : this.constructor.name + '_id'
+      this.join(m.settings.table, this.settings.table + '.' + localKey, m.settings.table + '.' + foreignKey)
+      this.limit(1)
+    }
+    return this
+  }
+
+  public hasMany<T extends Model<I>, I extends ModelItems>(model: ModelCreator<any>, foreignKey?: string, localKey?: string) {
+    let m = new model() as T
+    if (m.settings.table) {
+      localKey = localKey ? localKey : 'id'
+      foreignKey = foreignKey ? foreignKey : this.constructor.name + '_id'
+      this.join(m.settings.table, this.settings.table + '.' + localKey, m.settings.table + '.' + foreignKey)
+      this.limit(-1)
+    }
     return this
   }
 
@@ -288,8 +316,8 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
     return t
   }
 
-  public static toString<T extends Model<I>, I extends ModelItems>(): string {
-    return this.create<T, I>().toString()
-  }
+  // public static toString<T extends Model<I>, I extends ModelItems>(): string {
+  //   return this.create<T, I>().toString()
+  // }
 
 }

@@ -2,6 +2,7 @@ import { initdb, db } from 'query-builder'
 import purchases, { Purchase } from './models/purchases'
 
 import * as assert from 'assert'
+import user, { User } from './models/users';
 
 // purchases.chunk(10, (rows) => {
 //   console.log(rows)
@@ -20,9 +21,11 @@ import * as assert from 'assert'
     }
   })
 
-  console.log(purchases.where('id', 4).rightJoin('test', (join) => {
-    join.on('a', 'b').on('c', 'd')
-  }).toString())
+  console.log((await user.where<user, User>('users.id', 1).purchases().get()).toArray())
+
+  // console.log(purchases.where('id', 4).join('test', (join) => {
+  //   join.on('a', 'b').where('a', [1, 212, 12, 3])
+  // }).toString())
 
   // let p = await purchases.where<purchases, Purchase>('id', '<', 10).get()
   // p.forEach((r) => {

@@ -18,6 +18,21 @@ export class QueryBuilder {
 
   private q: string[] = []
 
+  public static async query<T>(conn: Connection | undefined, query: string, values: any[]) {
+    return new Promise<Promise<T>>((resolve, reject) => {
+      if (!conn) conn = DB.getDefaultConnection()
+      if (!conn) return reject({ message: 'Could not get connection' })
+      if (conn.config.dumpQueries) console.log({
+        query, values,
+        connection: conn.name
+      })
+      conn.conn.query(query, values, (err, results) => {
+        if (err) return reject({ sql: err.sql, message: err.message })
+        return resolve(results)
+      })
+    })
+  }
+
   public async query<T>(conn: Connection | undefined/* , query: string, values: any[] */): Promise<T> {
     return new Promise<Promise<T>>((resolve, reject) => {
       if (!conn) conn = DB.getDefaultConnection()
@@ -94,8 +109,9 @@ export class QueryBuilder {
 
     // Create the having
     this.opts.havingWhere.length > 0 || this.opts.havingBetween.length > 0 ? this.q.push('having') : null
-    this.q = this.q.concat(this.where(this.opts.havingWhere))
-    this.q = this.q.concat(this.between(this.opts.havingBetween))
+    let having = (<string[]>[]).concat(this.where(this.opts.havingWhere))
+    having = having.concat(this.between(this.opts.havingBetween))
+    this.q.push(having.join(' and '))
 
     // Create the order by
     this.q = this.q.concat(this.orderBy(this.opts.order))

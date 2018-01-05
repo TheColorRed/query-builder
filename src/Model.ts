@@ -33,8 +33,8 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
 
     return new Proxy(this, {
       get: (target, prop) => {
-        let attr = prop.toString().replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); })
-        attr = attr.charAt(0).toUpperCase() + attr.slice(1)
+        // let attr = prop.toString().replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); })
+        // attr = attr.charAt(0).toUpperCase() + attr.slice(1)
         if (!Array.isArray(target._items) && target._items instanceof Row) {
           if (prop in target._items.row) {
             return target._items.row[prop.toString()]
@@ -45,7 +45,7 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
             return target._items[0].row[prop.toString()]
           }
         }
-        return target[prop.toString()]
+        return target[prop]
       }
     })
   }
@@ -63,7 +63,7 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
     }
   }
 
-  [Symbol.iterator](): IterableIterator<I> {
+  public [Symbol.iterator](): IterableIterator<I> {
     return this
   }
 
@@ -133,95 +133,80 @@ export class Model<I extends ModelItems> extends ModelBase<I> implements Iterabl
     if (!this._items) {
       this._items = new Row<I>()
     }
-    Array.isArray(this._items) && this._items.forEach((item) => {
+    if (Array.isArray(this._items)) {
+      this._items.forEach((item) => {
+        if (args.length == 1 && args[0] instanceof Object) {
+          for (let key in args[0]) {
+            let current = item.row[key]
+            item.row[key] = args[0][key]
+            if (current != item.row[key]) { item.dirty() }
+          }
+        } else if (args.length == 2) {
+          let current = item.row[args[0]]
+          item.row[args[0]] = args[1]
+          if (current != item.row[args[0]]) { item.dirty() }
+        }
+        // this._items && this._items.set(idx, item)
+      })
+    } else if (this._items instanceof Row) {
       if (args.length == 1 && args[0] instanceof Object) {
         for (let key in args[0]) {
-          let current = item.row[key]
-          item.row[key] = args[0][key]
-          if (current != item.row[key]) { item.dirty() }
+          let current = this._items.row[key]
+          this._items.row[key] = args[0][key]
+          if (current != this._items.row[key]) { this._items.dirty() }
         }
       } else if (args.length == 2) {
-        let current = item.row[args[0]]
-        item.row[args[0]] = args[1]
-        if (current != item.row[args[0]]) { item.dirty() }
+        let current = this._items.row[args[0]]
+        this._items.row[args[0]] = args[1]
+        if (current != this._items.row[args[0]]) { this._items.dirty() }
       }
-      // this._items && this._items.set(idx, item)
-    })
+    }
     return this
   }
 
   public async save() {
     let saves: Promise<any>[] = []
-    Array.isArray(this._items) && this._items.forEach(async item => {
-      if (!this._settings) return false
-      let settings = this._settings
-      if (!item.isDirty && (typeof this._conn.config.saveNonDirtyRows == 'undefined' || !this._conn.config.saveNonDirtyRows)) {
-        return false
+    if (Array.isArray(this._items)) {
+      this._items.forEach(async item => this.saveItem<I>(item, saves))
+    } else if (this._items instanceof Row) {
+      this.saveItem<I>(this._items, saves)
+    }
+    await Promise.all(saves)
+    return this
+  }
+
+  private saveItem<T extends ModelItems>(item: Row<T>, saves: Promise<any>[]) {
+    if (!this._settings) return false
+    let settings = this._settings
+    if (!item.isDirty && (typeof this._conn.config.saveNonDirtyRows == 'undefined' || !this._conn.config.saveNonDirtyRows)) {
+      return false
+    }
+    if (item.isNewRow) {
+      // Saves a new item
+      let builder = ModelBase.create().table(settings.table)
+      for (let key in item.row) {
+        if (settings.fillable && settings.fillable.indexOf(key) > -1) {
+          builder.setValue(key, item.row[key])
+        }
       }
-      if (item.isNewRow) {
-        // Saves a new item
+      let i = builder.insert()
+      i.then(() => { item['_dirty'] = false; item['_newRow'] = false })
+      saves.push(i)
+    } else {
+      // Updates the current item
+      if (Array.isArray(settings.primaryKey) && settings.primaryKey.length > 0) {
         let builder = ModelBase.create().table(settings.table)
         for (let key in item.row) {
           if (settings.fillable && settings.fillable.indexOf(key) > -1) {
             builder.setValue(key, item.row[key])
           }
         }
-        let i = builder.insert()
-        i.then(() => { item['_dirty'] = false; item['_newRow'] = false })
-        saves.push(i)
-      } else {
-        // Updates the current item
-        if (Array.isArray(settings.primaryKey) && settings.primaryKey.length > 0) {
-          let builder = ModelBase.create().table(settings.table)
-          for (let key in item.row) {
-            if (settings.fillable && settings.fillable.indexOf(key) > -1) {
-              builder.setValue(key, item.row[key])
-            }
-          }
-          for (let key of settings.primaryKey) { builder.where(key, item.row[key]) }
-          let u = builder.update()
-          u.then(() => { item['_dirty'] = false })
-          saves.push(u)
-        }
+        for (let key of settings.primaryKey) { builder.where(key, item.row[key]) }
+        let u = builder.update()
+        u.then(() => { item['_dirty'] = false })
+        saves.push(u)
       }
-    })
-    await Promise.all(saves)
-    return this
-    // Creates an update
-    // if (!this._new) {
-    //   if (Array.isArray(this._settings.primaryKey) && this._settings.primaryKey.length > 0) {
-    //     for (let key in this._items) {
-    //       if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
-    //         builder.setValue(key, this._items[key])
-    //       }
-    //     }
-    //     for (let key of this._settings.primaryKey) { builder.where(key, this._items[key]) }
-    //   } else {
-    //     // No primary keys set, we cannot do an update
-    //     console.error(`No primary key(s) set on model "${this.constructor.name}", an update cannot be performed`)
-    //     return false
-    //   }
-    //   let update = await builder.update()
-    //   if (update) {
-    //     builder._dirty = false
-    //     builder._new = false
-    //   }
-    //   return update
-    // }
-    // // Creates an insert
-    // else {
-    //   for (let key in this._items) {
-    //     if (this._settings.fillable && this._settings.fillable.indexOf(key) > -1) {
-    //       builder.setValue(key, this._items[key])
-    //     }
-    //   }
-    //   let insert = await builder.insert()
-    //   if (insert) {
-    //     builder._dirty = false
-    //     builder._new = false
-    //   }
-    //   return insert
-    // }
+    }
   }
 
   public async delete() {
